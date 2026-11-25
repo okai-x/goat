@@ -92,12 +92,9 @@ it.layer(NodeServices.layer)("environment theme", (it) => {
     '[data-slot="sidebar"]{background:url(https://evil.example/x)}',
     '[data-slot="sidebar"]{background:image-set("https://evil.example/x" 1x)}',
     '[data-slot="sidebar"]{background:-webkit-image-set("https://evil.example/x" 1x)}',
-    '[data-slot="sidebar"]{background:image("https://evil.example/x")}',
     '[data-slot="sidebar"]{background:cross-fade(url(https://evil.example/x),red)}',
-    '[data-slot="sidebar"]{background:element(#x)}',
     '[data-slot="sidebar"]{background:src("https://evil.example/x")}',
-    '[data-slot="sidebar"]{background:"https://evil.example/x"}',
-  ])("rejects resource-loading CSS at the server boundary", (css) =>
+  ])("rejects CSS that loads a remote file at the server boundary: %s", (css) =>
     withEnvironmentThemes(
       {},
       Effect.gen(function* () {
@@ -123,8 +120,9 @@ it.layer(NodeServices.layer)("environment theme", (it) => {
       {},
       Effect.gen(function* () {
         const service = yield* EnvironmentTheme.EnvironmentThemeService;
-        const safe = yield* service.validateCss('[data-slot="sidebar"]{color:red}');
-        assert.include(safe, "[data-goat-theme-root]");
+        const animated =
+          '@keyframes glow{to{opacity:.4}} html.dark body::after{content:"";animation:glow 2s infinite;background:url("data:image/png;base64,AA==")}';
+        assert.equal(yield* service.validateCss(animated), animated);
         const failure = yield* service
           .validateCss('@import "https://evil.example/x.css";')
           .pipe(Effect.flip);
@@ -132,12 +130,12 @@ it.layer(NodeServices.layer)("environment theme", (it) => {
       }),
     ),
   );
-  it.effect("publishes only scoped CSS and rejects a theme with unsafe CSS", () =>
+  it.effect("publishes theme CSS unchanged and skips a theme whose CSS loads a remote file", () =>
     withEnvironmentThemes(
       {
         "safe.json": JSON.stringify({
           ...NIGHTFALL_THEME,
-          css: '[data-slot="sidebar"]{color:red}',
+          css: ".dark body::after{content:'';animation:spin 1s infinite}",
         }),
         "unsafe.json": JSON.stringify({
           ...NIGHTFALL_THEME,
@@ -148,7 +146,7 @@ it.layer(NodeServices.layer)("environment theme", (it) => {
         const themes = yield* currentThemes;
         assert.equal(themes.length, 1);
         assert.equal(themes[0]?.id, "safe");
-        assert.include(themes[0]?.css ?? "", "[data-goat-theme-root]");
+        assert.equal(themes[0]?.css, ".dark body::after{content:'';animation:spin 1s infinite}");
       }),
     ),
   );

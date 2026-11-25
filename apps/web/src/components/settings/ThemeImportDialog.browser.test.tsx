@@ -215,7 +215,7 @@ function themeJsonc(name: string, background: string) {
 }
 
 describe("ThemeImportDialog JSONC imports", () => {
-  it("rejects an imported theme containing unsafe CSS", async () => {
+  it("rejects an imported theme whose CSS imports a stylesheet", async () => {
     using _themes = isolateThemes();
     await using _screen = await render(
       <ThemeImportDialog
@@ -237,14 +237,14 @@ describe("ThemeImportDialog JSONC imports", () => {
     await expect
       .element(
         page.getByText(
-          "Images in theme CSS are not supported. Use the background setting instead.",
+          "Theme CSS cannot load remote files. Remove @import, image-set(), src(), and any url() that is not data: or #id.",
         ),
       )
       .toBeVisible();
     expect(getCustomThemes()).toEqual([]);
   });
 
-  it("explains that imported CSS image URLs need the background setting", async () => {
+  it("explains that imported CSS cannot load a remote image", async () => {
     using _themes = isolateThemes();
     await using _screen = await render(
       <ThemeImportDialog
@@ -259,14 +259,14 @@ describe("ThemeImportDialog JSONC imports", () => {
       name: "Image",
       appearance: "dark",
       colors: { canvas: "#112233" },
-      css: '[data-slot="sidebar"]{background:url(data:image/png;base64,AA==)}',
+      css: '[data-slot="sidebar"]{background:url(https://example.com/x.png)}',
     });
     await page.getByRole("textbox", { name: "Theme JSON" }).fill(json);
     await page.getByRole("button", { name: "Add theme", exact: true }).click();
     await expect
       .element(
         page.getByText(
-          "Images in theme CSS are not supported. Use the background setting instead.",
+          "Theme CSS cannot load remote files. Remove @import, image-set(), src(), and any url() that is not data: or #id.",
         ),
       )
       .toBeVisible();

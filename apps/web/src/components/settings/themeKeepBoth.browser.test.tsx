@@ -29,7 +29,8 @@ it.each(["paste", "file"])(
         invalidateCustomThemes();
       },
     };
-    const css = '[data-slot="sidebar"]{color:red}';
+    const css =
+      '@keyframes glow{to{opacity:.4}} .dark body::after{content:"";animation:glow 2s infinite;background:url("data:image/png;base64,AA==")}';
     const file = {
       version: THEME_FILE_VERSION,
       name: "Nightfall",
@@ -60,7 +61,7 @@ it.each(["paste", "file"])(
     await page.getByRole("button", { name: "Add theme", exact: true }).click();
     await page.getByRole("button", { name: "Keep both" }).click();
     const copy = getCustomThemes().find((candidate) => candidate.id !== "nightfall");
-    expect(copy?.css).toContain("[data-goat-theme-root]");
+    expect(copy?.css).toBe(css);
     expect(copy?.collection).toBeUndefined();
   },
 );

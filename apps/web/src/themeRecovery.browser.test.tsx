@@ -26,7 +26,7 @@ it("restores both previously valid halves when the other half fails on a mode sw
     label: "Bad",
     appearance: "dark",
     colors: getDefaultThemeColors("dark"),
-    css: '[data-slot="sidebar"]{position:fixed}',
+    css: '[data-slot="sidebar"]{background:url(https://evil.example/x)}',
   });
   try {
     setTheme("grove");
@@ -59,7 +59,7 @@ it("restores the last valid pair when an invalid stored half is encountered at s
     label: "Bad startup",
     appearance: "dark",
     colors: getDefaultThemeColors("dark"),
-    css: '[data-slot="sidebar"]{position:fixed}',
+    css: '[data-slot="sidebar"]{background:url(https://evil.example/x)}',
   });
   try {
     setTheme("grove");

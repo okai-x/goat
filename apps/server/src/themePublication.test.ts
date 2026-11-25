@@ -76,10 +76,10 @@ it.layer(NodeServices.layer)("theme publication", (it) => {
         const base = yield* fs.makeTempDirectoryScoped({ prefix: "goat-theme-publish-" });
         const folder = path.join(base, "userdata", "themes");
         yield* fs.makeDirectory(folder, { recursive: true });
-        for (let index = 0; index < 6; index++) {
+        for (let index = 0; index < 4; index++) {
           yield* fs.writeFileString(
             path.join(folder, `a${index}.json`),
-            JSON.stringify(theme) + " ".repeat(31_000),
+            JSON.stringify(theme) + " ".repeat(520_000),
           );
         }
         const layer = ThemePublication.layer.pipe(
@@ -92,7 +92,7 @@ it.layer(NodeServices.layer)("theme publication", (it) => {
         );
         yield* Effect.gen(function* () {
           const service = yield* ThemePublication.ThemePublicationService;
-          const css = '[data-slot="sidebar"]{color:red}'.repeat(300);
+          const css = '[data-slot="sidebar"]{color:red}'.repeat(1000);
           yield* service
             .set({ themeId: "zzz", theme: { ...theme, css }, agent: true }, Effect.void)
             .pipe(Effect.flip);

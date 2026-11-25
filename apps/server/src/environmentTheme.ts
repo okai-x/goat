@@ -7,6 +7,7 @@ import {
   EnvironmentThemeFile,
   EnvironmentThemeId,
   environmentThemeFileHasColors,
+  THEME_CSS_MAX_LENGTH,
   ThemeCssValidationError,
 } from "@goat/contracts";
 import { UNPUBLISHABLE_THEME_IDS } from "@goat/shared/themePalettes";
@@ -44,8 +45,9 @@ const THEME_FILE_SUFFIX = ".json";
 
 export const MAX_THEME_FILES = 32;
 /** Shared with publishing so it cannot accept files the watcher skips. */
-export const MAX_THEME_FILE_BYTES = 32 * 1024;
-const MAX_THEME_TOTAL_BYTES = 192 * 1024;
+// JSON can spend six bytes on one CSS character; the rest is room for the colors.
+export const MAX_THEME_FILE_BYTES = 6 * THEME_CSS_MAX_LENGTH + 16 * 1024;
+const MAX_THEME_TOTAL_BYTES = 2 * 1024 * 1024;
 
 interface PublishedThemes {
   readonly seq: number;

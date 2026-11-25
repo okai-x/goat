@@ -69,9 +69,13 @@ On web and desktop, choose **Create theme** to adjust a palette, or import a GOA
 theme. The theme editor's color picker lets you select an area of the app to find the color to
 change. Export your theme as JSON to share it.
 
-The editor also accepts scoped CSS for colors and opacity on supported app elements. CSS cannot
-load images or other resources; use the background setting for images. Themes with unsupported
-CSS are rejected when imported or saved.
+A theme can also carry up to 100,000 characters of CSS, applied after GOAT's own styles. Themes
+written for T3 Code work unchanged: use `.dark` or `:root:not(.dark)` to target one appearance.
+Theme CSS can restyle, animate, move, or hide any part of the app, so import themes only from
+sources you trust and switch to a built-in theme if one leaves the app hard to use. It cannot load
+remote files: `@import`, `image-set()`, and `src()` are refused, and `url()` works only with a
+`data:` address or an `#id`. A theme that breaks these rules is rejected when imported, saved, or
+published.
 
 ## Environment themes
 
@@ -113,7 +117,10 @@ Do not use `system`, `light`, `dark`, or a built-in theme's ID.
 To add a published background, place a PNG, JPEG, or WebP image of at most 16 MiB beside the
 theme file with the same name, such as `nightfall.png`. Web and desktop show it when the published
 theme is selected. A saved theme with the same ID keeps its own appearance and does not use the
-published background.
+published background. GOAT shows the image dimmed behind the conversation; a theme's CSS can place
+it elsewhere with `var(--theme-background-image)`.
+
+A theme file can be up to about 600 KB, and the folder's themes up to 2 MiB together.
 
 For an integration that generates a palette, this shorter format also works:
 

@@ -1,7 +1,9 @@
 export class ThemeCssResourceError extends Error {
   override readonly name = "ThemeCssResourceError";
   constructor() {
-    super("Images in theme CSS are not supported. Use the background setting instead.");
+    super(
+      "Theme CSS cannot load remote files. Remove @import, image-set(), src(), and any url() that is not data: or #id.",
+    );
   }
 }
 

@@ -43,13 +43,13 @@ function Appearance() {
   );
 }
 
-it("shows a generic rejection when a stored theme uses an unsupported property", async () => {
+it("selects a stored theme whose CSS changes layout and animates", async () => {
   installCustomTheme({
-    id: "bad-property",
-    label: "Bad property",
+    id: "layout-css",
+    label: "Layout CSS",
     appearance: "dark",
     colors: getDefaultThemeColors("dark"),
-    css: '[data-slot="sidebar"]{position:fixed}',
+    css: '@keyframes drift{to{translate:4px}} [data-slot="sidebar"]{position:relative;animation:drift 9s infinite}',
   });
   try {
     setTheme("grove");
@@ -57,13 +57,11 @@ it("shows a generic rejection when a stored theme uses an unsupported property",
     await using screen = await render(<Appearance />);
     const trigger = screen.getByRole("button", { name: /^Theme:/ });
     await userEvent.click(trigger);
-    await userEvent.click(screen.getByRole("menuitemradio", { name: /Bad property/ }));
-    await expect
-      .element(screen.getByText("This theme cannot be applied because its CSS is not supported."))
-      .toBeVisible();
-    await expect.element(trigger).toHaveAccessibleName("Theme: Grove");
+    await userEvent.click(screen.getByRole("menuitemradio", { name: /Layout CSS/ }));
+    await expect.element(trigger).toHaveAccessibleName(/Layout CSS for dark mode$/);
+    await expect.element(screen.getByRole("alert")).not.toBeInTheDocument();
   } finally {
     setTheme("system");
-    removeCustomThemes(["bad-property"]);
+    removeCustomThemes(["layout-css"]);
   }
 });
