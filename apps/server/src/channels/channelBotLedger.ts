@@ -82,6 +82,17 @@ export interface ChannelBotLedgerOps {
     readonly now: string;
   }) => Effect.Effect<ChannelBotRef, ChannelLedgerError>;
   /**
+   * Moves a member's ref and profile to `bot` if they still name `previousThreadId`; returns
+   * whichever ref is stored afterwards.
+   */
+  readonly replaceMemberBot: (input: {
+    readonly ownerId: string;
+    readonly botId: BotId;
+    readonly previousThreadId: ThreadId;
+    readonly bot: ChannelBotRef;
+    readonly now: string;
+  }) => Effect.Effect<ChannelBotRef, ChannelLedgerError>;
+  /**
    * Gives tasks back the bot of the input that created them. An older build creates tasks with
    * the column default, main, even for a member's input; the input row keeps its bot. Returns
    * how many tasks changed; a second run changes none.
@@ -271,6 +282,35 @@ export const botLedger = (
       Effect.mapError(toLedgerError("setMemberBotIfAbsent")),
     );
 
+  const replaceMemberBot: ChannelBotLedgerOps["replaceMemberBot"] = (input) =>
+    checkedOwner(input.ownerId).pipe(
+      Effect.andThen(
+        sql.withTransaction(
+          Effect.gen(function* () {
+            const current = yield* readMember(input.ownerId, input.botId);
+            if (current === undefined || current.threadId !== input.previousThreadId)
+              return current ?? input.bot;
+            yield* sql`
+              UPDATE channel_runtime_state SET value_json = ${encodeMember({
+                bot: input.bot,
+                ownerId: input.ownerId,
+                botId: input.botId,
+              })}, updated_at = ${input.now}
+              WHERE key = ${memberBotKey(input.ownerId, input.botId)}
+            `;
+            yield* sql`
+              UPDATE channel_runtime_state
+              SET value_json = json_set(value_json, '$.sessionThreadId', ${input.bot.threadId}),
+                updated_at = ${input.now}
+              WHERE key = ${botProfileKey(input.ownerId, input.botId)}
+            `;
+            return input.bot;
+          }),
+        ),
+      ),
+      Effect.mapError(toLedgerError("replaceMemberBot")),
+    );
+
   // Walks only member inputs (a partial index) and the tasks each one created.
   const repairTaskBots: ChannelBotLedgerOps["repairTaskBots"] = () =>
     changes
@@ -316,6 +356,7 @@ export const botLedger = (
     replaceBot,
     resolveIngressBot,
     setMemberBotIfAbsent,
+    replaceMemberBot,
     repairTaskBots,
     ensureTaskBotsRepaired,
     taskChangeRevisions: changes.revisions,

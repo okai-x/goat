@@ -275,11 +275,17 @@ export const botLaunchIdsFor = (ownerId: string, replacing?: ThreadId) => {
   };
 };
 
-/** A member bot's session thread: every create retry and reconciler pass lands on one thread. */
-export const memberBotLaunchIdsFor = (ownerId: string, botId: string) => ({
-  commandId: CommandId.make(stableId("channel-member-bot-launch", [ownerId, botId])),
-  threadId: ThreadId.make(stableId("channel-member-bot", [ownerId, botId])),
-});
+/**
+ * A member bot's session thread, or the one that replaces a deleted one: every create retry and
+ * reconciler pass lands on one thread.
+ */
+export const memberBotLaunchIdsFor = (ownerId: string, botId: string, replacing?: ThreadId) => {
+  const parts = replacing === undefined ? [ownerId, botId] : [ownerId, botId, replacing];
+  return {
+    commandId: CommandId.make(stableId("channel-member-bot-launch", parts)),
+    threadId: ThreadId.make(stableId("channel-member-bot", parts)),
+  };
+};
 
 /** Archiving or unarchiving a member's thread for one lifecycle step. */
 export const memberBotStepCommandIdFor = (threadId: ThreadId, step: string, at: string) =>
