@@ -1,15 +1,19 @@
 import { THEME_CSS_MAX_LENGTH } from "@goat/contracts";
 import { themeCssLoadsRemoteFiles } from "./themeCss.ts";
-import { ThemeCssResourceError } from "./themeCssErrors.ts";
-
-export { THEME_CSS_MAX_LENGTH };
+import { ThemeCssRemoteFileError } from "./themeCssErrors.ts";
+import { restrictThemeCss } from "./themeCssRestricted.ts";
 
 /**
- * Accepts any theme CSS that fits and does not load remote files, and returns it unchanged.
- * This is early feedback only: the client drops fetching declarations when it applies the CSS.
+ * Checks theme CSS and returns the text to apply. Leaving `unrestricted` out keeps the restricted
+ * policy, so a caller that forgets the setting cannot widen it. Unrestricted CSS comes back
+ * unchanged; that check is early feedback, and the client drops fetching declarations on apply.
  */
-export function sanitizeThemeCss(css: string): string {
+export function sanitizeThemeCss(
+  css: string,
+  options?: { readonly unrestricted?: boolean },
+): string {
+  if (options?.unrestricted !== true) return restrictThemeCss(css);
   if (css.length > THEME_CSS_MAX_LENGTH) throw new Error("Theme CSS is too large");
-  if (themeCssLoadsRemoteFiles(css)) throw new ThemeCssResourceError();
+  if (themeCssLoadsRemoteFiles(css)) throw new ThemeCssRemoteFileError();
   return css;
 }

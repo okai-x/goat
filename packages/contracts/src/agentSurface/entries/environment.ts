@@ -9,7 +9,7 @@ export const environmentEntries = {
     summary: "Publish and select an environment theme.",
     description: "Validate and optionally publish a theme, then select it for this environment.",
     guide:
-      "Requires settings:write and a person enabling agent theme changes. An empty themeId selects the stock theme for connected clients; goat theme clear instead removes the default and leaves their current themes alone. CSS may restyle anything but cannot load files: no @import, image-set(), or src(), and url() only with data: or #id.",
+      "Requires settings:write and a person enabling agent theme changes. An empty themeId selects the stock theme for connected clients; goat theme clear instead removes the default and leaves their current themes alone. CSS is limited to scoped color and opacity styles unless a person has turned on unrestricted theme CSS; then it may restyle anything but cannot load remote files (no @import, image-set() or src(), and url() only with data: or #id).",
     parameters: {
       themeId: "Built-in or published theme id, or empty to select the stock theme.",
       appearance: "Set light, dark, or system appearance independently or with a theme.",

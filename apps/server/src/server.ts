@@ -786,7 +786,7 @@ const layerRuntimeCoreDependenciesBase = Layer.mergeAll(
   Layer.provideMerge(
     Layer.mergeAll(
       Keybindings.layer,
-      EnvironmentTheme.layer,
+      EnvironmentTheme.layer.pipe(Layer.provide(layerServerSettings)),
       ThemePublication.layer.pipe(Layer.provide(layerServerSettings)),
       // Above the provider registries it reads, below the thread launches that capture it.
       ProviderCliGate.layer.pipe(Layer.provide(layerServerSettings)),

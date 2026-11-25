@@ -137,9 +137,11 @@ export default mergeConfig(
             },
           }
         : {}),
-      // This entry requires its own files at runtime, which the bundle cannot follow.
+      // These entries require their own files at runtime, which the bundle cannot follow;
+      // css-tree's prebuilt ESM build inlines the data its lib/ entry reads with createRequire.
       alias: {
         "jsonc-parser": "jsonc-parser/lib/esm/main.js",
+        "css-tree$": "css-tree/dist/csstree.esm",
       },
       deps: {
         // alwaysBundle=false has no opinion; neverBundle must retain transitive native acceleration.

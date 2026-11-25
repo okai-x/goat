@@ -17,6 +17,11 @@ vi.mock("./components/settings/settingsLayout", () => ({
     </div>
   ),
 }));
+// This case covers the allowUnrestrictedThemeCss setting turned on.
+vi.mock("./themeCssPolicy", () => ({
+  themeCssUnrestricted: () => true,
+  useThemeCssUnrestricted: () => true,
+}));
 vi.mock("./components/settings/ThemeImportDialog", () => ({ ThemeImportDialog: () => null }));
 
 function Appearance() {
@@ -43,7 +48,7 @@ function Appearance() {
   );
 }
 
-it("selects a stored theme whose CSS changes layout and animates", async () => {
+it("selects a stored theme with layout and animation CSS when unrestricted CSS is allowed", async () => {
   installCustomTheme({
     id: "layout-css",
     label: "Layout CSS",

@@ -6,6 +6,7 @@ import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
 import * as TestClock from "effect/testing/TestClock";
 import * as ServerConfig from "../config.ts";
+import * as Settings from "../serverSettings.ts";
 import * as SecretStore from "../auth/ServerSecretStore.ts";
 import { readPublishedThemes, layer as environmentThemeLayer } from "../environmentTheme.ts";
 import { issueThemeBackgroundUrl, resolveThemeBackgroundAsset } from "./themeBackgroundAsset.ts";
@@ -25,8 +26,14 @@ it.layer(NodeServices.layer)("published background assets", (it) => {
         });
         const configA = ServerConfig.layerTest(process.cwd(), baseA);
         const configB = ServerConfig.layerTest(process.cwd(), baseB);
-        const themeLayer = environmentThemeLayer.pipe(Layer.provide(configA));
-        const themeLayerB = environmentThemeLayer.pipe(Layer.provide(configB));
+        const themeLayer = environmentThemeLayer.pipe(
+          Layer.provide(configA),
+          Layer.provide(Settings.layerTest()),
+        );
+        const themeLayerB = environmentThemeLayer.pipe(
+          Layer.provide(configB),
+          Layer.provide(Settings.layerTest()),
+        );
         const initialize = (label: string) =>
           Effect.gen(function* () {
             const config = yield* ServerConfig.ServerConfig;

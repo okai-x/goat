@@ -6,6 +6,7 @@ import { ServerSettings, ServerSettingsPatch } from "./settings.ts";
 const oldSettings = Schema.Struct(
   Struct.omit(ServerSettings.fields, [
     "enableAgentThemeWrites",
+    "allowUnrestrictedThemeCss",
     "defaultAppearance",
     "defaultAppearanceSetAt",
   ]),
@@ -21,11 +22,13 @@ it("preserves old settings readers and defaults new readers to disabled", () => 
     decodeOld({
       ...oldPayload,
       enableAgentThemeWrites: true,
+      allowUnrestrictedThemeCss: true,
       defaultAppearance: "dark",
       defaultAppearanceSetAt: "stamp",
     }),
   ).toEqual(oldResult);
   expect(decodeNew(oldPayload).enableAgentThemeWrites).toBe(false);
+  expect(decodeNew(oldPayload).allowUnrestrictedThemeCss).toBe(false);
   expect(decodeNew(oldPayload).defaultAppearance).toBe("");
   expect(decodeNew(oldPayload).defaultAppearanceSetAt).toBe("");
 });

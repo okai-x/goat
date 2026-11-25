@@ -23,11 +23,7 @@ import { Argument, Command, Flag } from "effect/cli";
 
 import { writeFileStringAtomically } from "@goat/shared/atomicWrite";
 import * as ServerConfig from "../config.ts";
-import {
-  MAX_THEME_FILE_BYTES,
-  readPublishedThemes,
-  readThemeFileGuarded,
-} from "../environmentTheme.ts";
+import { readPublishedThemes, themeFileLimits, readThemeFileGuarded } from "../environmentTheme.ts";
 import { expandHomePath, resolveBaseDir } from "../os-jank.ts";
 import { baseDirFlag } from "./config.ts";
 import { readLiveServerRuntimeState } from "../serverRuntimeState.ts";
@@ -202,6 +198,12 @@ const readSettingsObject = Effect.fn(function* (settingsPath: string) {
   return { raw, settings };
 });
 
+/** The allowUnrestrictedThemeCss setting as the settings file holds it; absent means restricted. */
+const readUnrestrictedThemeCss = Effect.fn(function* (settingsPath: string) {
+  const { settings } = yield* readSettingsObject(settingsPath);
+  return settings.allowUnrestrictedThemeCss === true;
+});
+
 /** The server's in-process semaphore cannot serialize writes from this process. */
 const CONCURRENT_WRITE_ATTEMPTS = 5;
 
@@ -254,9 +256,11 @@ const publishThemeFile = Effect.fn(function* (input: {
   readonly themesDir: string;
   readonly filePath: string;
   readonly explicitId: Option.Option<string>;
+  readonly unrestricted: boolean;
 }) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
+  const limits = themeFileLimits(input.unrestricted);
   const info = yield* fs
     .stat(input.filePath)
     .pipe(
@@ -265,10 +269,10 @@ const publishThemeFile = Effect.fn(function* (input: {
   if (info.type !== "File") {
     return yield* new ThemeFileUnreadableError({ filePath: input.filePath });
   }
-  if (Number(info.size) > MAX_THEME_FILE_BYTES) {
+  if (Number(info.size) > limits.fileBytes) {
     return yield* new ThemeFileTooLargeError({
       filePath: input.filePath,
-      limit: MAX_THEME_FILE_BYTES,
+      limit: limits.fileBytes,
     });
   }
 
@@ -277,7 +281,7 @@ const publishThemeFile = Effect.fn(function* (input: {
     .pipe(
       Effect.mapError((cause) => new ThemeFileUnreadableError({ filePath: input.filePath, cause })),
     );
-  const raw = readThemeFileGuarded(resolvedSource, MAX_THEME_FILE_BYTES);
+  const raw = readThemeFileGuarded(resolvedSource, limits.fileBytes);
   if (raw === null) {
     return yield* new ThemeFileUnreadableError({ filePath: input.filePath });
   }
@@ -289,7 +293,7 @@ const publishThemeFile = Effect.fn(function* (input: {
   const css = decoded.value.css;
   if (css !== undefined) {
     yield* Effect.try({
-      try: () => sanitizeThemeCss(css),
+      try: () => sanitizeThemeCss(css, { unrestricted: input.unrestricted }),
       catch: (cause) => new ThemeFileInvalidError({ filePath: input.filePath, cause }),
     });
   }
@@ -390,8 +394,8 @@ const publishThemeFile = Effect.fn(function* (input: {
 });
 
 /** Web and desktop cannot resolve the mobile default, and mobile does not follow this setting. */
-const resolvableThemeIds = Effect.fn(function* (themesDir: string) {
-  const published = yield* readPublishedThemes(themesDir);
+const resolvableThemeIds = Effect.fn(function* (themesDir: string, unrestricted: boolean) {
+  const published = yield* readPublishedThemes(themesDir, unrestricted);
   return [...BUILT_IN_THEME_IDS, ...published.map((theme) => theme.id)].toSorted();
 });
 
@@ -429,11 +433,11 @@ const themeSetCommand = Command.make("set", {
       let revertPublish: Effect.Effect<void> = Effect.void;
       let cleanupPublish: Effect.Effect<void> = Effect.void;
       if (targetIsFile) {
-        yield* readSettingsObject(paths.settingsPath);
         const published = yield* publishThemeFile({
           themesDir: paths.themesDir,
           filePath: target,
           explicitId: flags.id,
+          unrestricted: yield* readUnrestrictedThemeCss(paths.settingsPath),
         });
         themeId = published.themeId;
         revertPublish = published.revert;
@@ -441,7 +445,10 @@ const themeSetCommand = Command.make("set", {
       } else if (looksLikePath) {
         return yield* new ThemeFileUnreadableError({ filePath: target });
       } else if (isEnvironmentThemeId(target)) {
-        const known = yield* resolvableThemeIds(paths.themesDir);
+        const known = yield* resolvableThemeIds(
+          paths.themesDir,
+          yield* readUnrestrictedThemeCss(paths.settingsPath),
+        );
         if (!known.includes(target)) {
           return yield* new ThemeIdUnknownError({ themeId: target, known });
         }
@@ -485,7 +492,10 @@ const themeShowCommand = Command.make("show", { baseDir: baseDirFlag }).pipe(
           ? settings.defaultTheme
           : null;
 
-      const published = (yield* readPublishedThemes(paths.themesDir))
+      const published = (yield* readPublishedThemes(
+        paths.themesDir,
+        settings.allowUnrestrictedThemeCss === true,
+      ))
         .map((theme) => theme.id)
         .toSorted();
 

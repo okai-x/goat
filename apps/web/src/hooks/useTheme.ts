@@ -27,7 +27,8 @@ import {
   type ThemePreferenceMode,
 } from "../themePalette";
 import { applyThemeCss } from "../themeCss";
-import { isThemeCssResourceError } from "@goat/shared/themeCssErrors";
+import { themeCssRejectionKind } from "@goat/shared/themeCssErrors";
+import { themeCssUnrestricted } from "../themeCssPolicy";
 import { setThemeCssRejected } from "../themeCssRejection";
 
 let themeValidationRevision = 0;
@@ -386,7 +387,7 @@ function applyTheme(
     const revision = ++themeValidationRevision;
     void import("@goat/shared/themeCssSanitizer")
       .then(({ sanitizeThemeCss }) => {
-        sanitizeThemeCss(css);
+        sanitizeThemeCss(css, { unrestricted: themeCssUnrestricted() });
         if (revision !== themeValidationRevision) return;
         if (!preserveRejection) setThemeCssRejected(false);
         applyTheme(theme, {
@@ -416,7 +417,7 @@ function applyTheme(
             console.error("Could not restore the previous theme", safeErrorLogAttributes(cause));
           }
         }
-        setThemeCssRejected(isThemeCssResourceError(error) ? "resource" : "invalid");
+        setThemeCssRejected(themeCssRejectionKind(error));
       });
     return;
   }
@@ -626,7 +627,7 @@ export function setTheme(
   if (css) {
     void import("@goat/shared/themeCssSanitizer")
       .then(({ sanitizeThemeCss }) => {
-        sanitizeThemeCss(css);
+        sanitizeThemeCss(css, { unrestricted: themeCssUnrestricted() });
         if (revision !== themeValidationRevision || (pending && !pending.canApply())) {
           pending?.onResult(false);
           return;
@@ -636,8 +637,7 @@ export function setTheme(
         if (!pending) setThemeValidated(next);
       })
       .catch((error: unknown) => {
-        if (revision === themeValidationRevision)
-          setThemeCssRejected(isThemeCssResourceError(error) ? "resource" : "invalid");
+        if (revision === themeValidationRevision) setThemeCssRejected(themeCssRejectionKind(error));
         pending?.onResult(false);
       });
     return true;
@@ -724,14 +724,13 @@ function setThemeHalf(appearance: ThemeAppearance, themeId: string | null): bool
   if (css) {
     void import("@goat/shared/themeCssSanitizer")
       .then(({ sanitizeThemeCss }) => {
-        sanitizeThemeCss(css);
+        sanitizeThemeCss(css, { unrestricted: themeCssUnrestricted() });
         if (revision !== themeValidationRevision) return;
         setThemeCssRejected(false);
         setThemeHalfValidated(appearance, themeId);
       })
       .catch((error: unknown) => {
-        if (revision === themeValidationRevision)
-          setThemeCssRejected(isThemeCssResourceError(error) ? "resource" : "invalid");
+        if (revision === themeValidationRevision) setThemeCssRejected(themeCssRejectionKind(error));
       });
     return true;
   }
@@ -790,7 +789,7 @@ function clearThemeHalves(): boolean {
   return true;
 }
 
-function refreshTheme({ preservePreview = false } = {}): void {
+export function refreshTheme({ preservePreview = false } = {}): void {
   if (typeof window === "undefined") return;
   lastAppliedTheme = null;
   applyTheme(getStored(), { suppressTransitions: true, preservePreview });

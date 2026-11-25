@@ -95,7 +95,7 @@ it.layer(NodeServices.layer)("theme.set agent surface", (it) => {
           assert.equal((yield* settings.getSettings).defaultTheme, succeeds ? "nightfall" : "");
           if (succeeds) {
             assert.deepEqual(result, { themeId: "nightfall" });
-            assert.include(yield* fs.readFileString(output), JSON.stringify(theme.css));
+            assert.include(yield* fs.readFileString(output), "[data-goat-theme-root]");
           } else {
             assert.property(result, "code");
           }

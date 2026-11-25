@@ -42,7 +42,7 @@ const theme = {
   label: "Default CSS",
   appearance: "dark" as const,
   colors: getDefaultThemeColors("dark"),
-  css: '[data-slot="sidebar"]{background:url(https://evil.example/x)}',
+  css: '[data-slot="sidebar"]{position:fixed}',
 };
 
 it("does not record a rejected default and applies a corrected publication", async () => {

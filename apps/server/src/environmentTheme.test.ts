@@ -15,6 +15,7 @@ import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
 
 import * as ServerConfig from "./config.ts";
+import * as Settings from "./serverSettings.ts";
 import * as EnvironmentTheme from "./environmentTheme.ts";
 import { symlinksSupported } from "@goat/shared/testing/symlinks";
 
@@ -26,6 +27,9 @@ const NIGHTFALL_THEME: EnvironmentThemeFile = {
   canvas: "#1a1b26",
   accent: "#7aa2f7",
 };
+
+const T3_CODE_CSS =
+  '@keyframes glow{to{opacity:.4}} html.dark body::after{content:"";animation:glow 2s infinite;background:url("data:image/png;base64,AA==")}';
 
 const SHARED_THEME: EnvironmentThemeFile = {
   version: 1,
@@ -44,7 +48,9 @@ const withEnvironmentThemes = <A, E>(
     | FileSystem.FileSystem
     | Path.Path
     | Scope.Scope
+    | Settings.ServerSettingsService
   >,
+  settings: { readonly allowUnrestrictedThemeCss?: boolean } = {},
 ) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
@@ -59,7 +65,12 @@ const withEnvironmentThemes = <A, E>(
     return yield* body.pipe(
       Effect.provide(
         EnvironmentTheme.layer.pipe(
-          Layer.provideMerge(ServerConfig.layerTest(process.cwd(), baseDir)),
+          Layer.provideMerge(
+            Layer.mergeAll(
+              ServerConfig.layerTest(process.cwd(), baseDir),
+              Settings.layerTest(settings),
+            ),
+          ),
         ),
       ),
     );
@@ -92,9 +103,12 @@ it.layer(NodeServices.layer)("environment theme", (it) => {
     '[data-slot="sidebar"]{background:url(https://evil.example/x)}',
     '[data-slot="sidebar"]{background:image-set("https://evil.example/x" 1x)}',
     '[data-slot="sidebar"]{background:-webkit-image-set("https://evil.example/x" 1x)}',
+    '[data-slot="sidebar"]{background:image("https://evil.example/x")}',
     '[data-slot="sidebar"]{background:cross-fade(url(https://evil.example/x),red)}',
+    '[data-slot="sidebar"]{background:element(#x)}',
     '[data-slot="sidebar"]{background:src("https://evil.example/x")}',
-  ])("rejects CSS that loads a remote file at the server boundary: %s", (css) =>
+    '[data-slot="sidebar"]{background:"https://evil.example/x"}',
+  ])("rejects resource-loading CSS at the server boundary", (css) =>
     withEnvironmentThemes(
       {},
       Effect.gen(function* () {
@@ -120,9 +134,8 @@ it.layer(NodeServices.layer)("environment theme", (it) => {
       {},
       Effect.gen(function* () {
         const service = yield* EnvironmentTheme.EnvironmentThemeService;
-        const animated =
-          '@keyframes glow{to{opacity:.4}} html.dark body::after{content:"";animation:glow 2s infinite;background:url("data:image/png;base64,AA==")}';
-        assert.equal(yield* service.validateCss(animated), animated);
+        const safe = yield* service.validateCss('[data-slot="sidebar"]{color:red}');
+        assert.include(safe, "[data-goat-theme-root]");
         const failure = yield* service
           .validateCss('@import "https://evil.example/x.css";')
           .pipe(Effect.flip);
@@ -130,12 +143,12 @@ it.layer(NodeServices.layer)("environment theme", (it) => {
       }),
     ),
   );
-  it.effect("publishes theme CSS unchanged and skips a theme whose CSS loads a remote file", () =>
+  it.effect("publishes only scoped CSS and rejects a theme with unsafe CSS", () =>
     withEnvironmentThemes(
       {
         "safe.json": JSON.stringify({
           ...NIGHTFALL_THEME,
-          css: ".dark body::after{content:'';animation:spin 1s infinite}",
+          css: '[data-slot="sidebar"]{color:red}',
         }),
         "unsafe.json": JSON.stringify({
           ...NIGHTFALL_THEME,
@@ -146,9 +159,61 @@ it.layer(NodeServices.layer)("environment theme", (it) => {
         const themes = yield* currentThemes;
         assert.equal(themes.length, 1);
         assert.equal(themes[0]?.id, "safe");
-        assert.equal(themes[0]?.css, ".dark body::after{content:'';animation:spin 1s infinite}");
+        assert.include(themes[0]?.css ?? "", "[data-goat-theme-root]");
       }),
     ),
+  );
+  it.effect("publishes unrestricted theme CSS unchanged only while the setting is on", () =>
+    withEnvironmentThemes(
+      {
+        "animated.json": JSON.stringify({ ...NIGHTFALL_THEME, css: T3_CODE_CSS }),
+        "remote.json": JSON.stringify({
+          ...NIGHTFALL_THEME,
+          css: "body{background:url(https://evil.example/x)}",
+        }),
+      },
+      Effect.gen(function* () {
+        const settings = yield* Settings.ServerSettingsService;
+        assert.deepEqual(yield* currentThemes, []);
+        yield* settings.updateSettings({ allowUnrestrictedThemeCss: true });
+        const themes = yield* currentThemes;
+        assert.deepEqual(
+          themes.map((theme) => [theme.id, theme.css]),
+          [["animated", T3_CODE_CSS]],
+        );
+        yield* settings.updateSettings({ allowUnrestrictedThemeCss: false });
+        assert.deepEqual(yield* currentThemes, []);
+      }),
+    ),
+  );
+  it.effect("validates client CSS against the unrestricted policy when the setting is on", () =>
+    withEnvironmentThemes(
+      {},
+      Effect.gen(function* () {
+        const service = yield* EnvironmentTheme.EnvironmentThemeService;
+        assert.equal(yield* service.validateCss(T3_CODE_CSS), T3_CODE_CSS);
+        const failure = yield* service
+          .validateCss('@import "https://evil.example/x.css";')
+          .pipe(Effect.flip);
+        assert.equal(failure._tag, "ThemeCssValidationError");
+      }),
+      { allowUnrestrictedThemeCss: true },
+    ),
+  );
+  it.effect("reads a theme file past the restricted size limit only when the setting is on", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const dir = yield* fs.makeTempDirectoryScoped({ prefix: "goat-theme-large-" });
+      const css = `/* ${"x".repeat(60_000)} */ body{color:red}`;
+      yield* fs.writeFileString(
+        path.join(dir, "large.json"),
+        JSON.stringify({ ...NIGHTFALL_THEME, css }),
+      );
+      assert.deepEqual(yield* EnvironmentTheme.readPublishedThemes(dir), []);
+      const themes = yield* EnvironmentTheme.readPublishedThemes(dir, true);
+      assert.equal(themes[0]?.css, css);
+    }).pipe(Effect.scoped),
   );
   it.effect("reattaches themes before resyncing and stops watching when its scope closes", () =>
     Effect.gen(function* () {

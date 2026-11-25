@@ -31,6 +31,7 @@ import { Button } from "../ui/button";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { Switch } from "../ui/switch";
 import { ThemeLibrary } from "./ThemeSettings";
+import { UnrestrictedThemeCssSetting } from "./UnrestrictedThemeCssSetting";
 import {
   SettingResetButton,
   SettingsPageContainer,
@@ -214,6 +215,7 @@ export function AppearanceSettingsPanel() {
           themeHalves={themeHalves}
           onImportOpenChange={setIsImportThemeOpen}
         />
+        <UnrestrictedThemeCssSetting />
       </SettingsSection>
 
       <SettingsSection id="appearance-interface" title={gt("Interface")}>

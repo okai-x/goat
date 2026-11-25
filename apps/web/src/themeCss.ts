@@ -1,12 +1,15 @@
 import { themeCssValueFetches } from "@goat/shared/themeCss";
 
+import { themeCssUnrestricted } from "./themeCssPolicy";
+
 // Theme CSS comes from imported files and from agents, so it must not fetch: a
 // url() on an attribute selector can send what is on screen to another host.
 // The browser parses the text first, so the checks see normalized values and
 // CSS escapes in a function name cannot dodge them.
 
 let themeSheet: CSSStyleSheet | null = null;
-let appliedCss = "";
+let appliedKey = "";
+let revision = 0;
 
 type RuleParent = Pick<CSSStyleSheet, "cssRules" | "deleteRule">;
 
@@ -49,16 +52,28 @@ function stripFetches(parent: RuleParent): void {
   }
 }
 
+/**
+ * Replaces the theme stylesheet. Rejects, leaving no theme CSS applied, when the CSS breaks the
+ * policy in force. Unchanged CSS is left alone: replacing a sheet restarts its animations.
+ */
 export async function applyThemeCss(css: string | undefined): Promise<void> {
+  const current = ++revision;
   if (typeof document === "undefined" || typeof CSSStyleSheet === "undefined") return;
-  const next = css ?? "";
-  if (next === appliedCss) return;
-  appliedCss = next;
+  const unrestricted = themeCssUnrestricted();
+  const key = css ? `${unrestricted ? "unrestricted" : "restricted"}:${css}` : "";
+  if (key === appliedKey) return;
+  appliedKey = "";
+  themeSheet?.replaceSync("");
+  if (!css) return;
+  const { sanitizeThemeCss } = await import("@goat/shared/themeCssSanitizer");
+  const checked = sanitizeThemeCss(css, { unrestricted });
+  if (current !== revision) return;
   if (!themeSheet) {
     // Adopted sheets order after the document's own, and they cannot hold @import.
     themeSheet = new CSSStyleSheet();
     document.adoptedStyleSheets = [...document.adoptedStyleSheets, themeSheet];
   }
-  themeSheet.replaceSync(next);
+  themeSheet.replaceSync(checked);
   stripFetches(themeSheet);
+  appliedKey = key;
 }

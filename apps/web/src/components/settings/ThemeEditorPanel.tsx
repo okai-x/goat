@@ -8,7 +8,7 @@ import {
 } from "~/components/solar";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useMessages } from "gt-react";
-import { isThemeCssResourceError } from "@goat/shared/themeCssErrors";
+import { isThemeCssResourceError, themeCssRejectionKind } from "@goat/shared/themeCssErrors";
 import {
   applyThemeColorPreview,
   THEME_COLOR_ROLES,
@@ -34,7 +34,8 @@ import { useViewportSize } from "../../hooks/useViewportSize";
 import { applyThemeCss } from "../../themeCss";
 import { THEME_CSS_RESOURCE_MESSAGE } from "../../themeCssMessages";
 import { validateThemeCssForSave } from "../../validateThemeCssForSave";
-import { THEME_CSS_MAX_LENGTH } from "@goat/contracts";
+import { THEME_CSS_MAX_LENGTH, THEME_CSS_RESTRICTED_MAX_LENGTH } from "@goat/contracts";
+import { useThemeCssUnrestricted } from "../../themeCssPolicy";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -152,6 +153,7 @@ export function ThemeEditorPanel({
 }) {
   const m = useMessages();
   const resourceErrorMessage = m(THEME_CSS_RESOURCE_MESSAGE);
+  const cssUnrestricted = useThemeCssUnrestricted();
   const isEditing = editingTheme !== null;
   const [name, setName] = useState("");
   const [css, setCss] = useState("");
@@ -269,7 +271,9 @@ export function ThemeEditorPanel({
       setError(
         isThemeCssResourceError(cause)
           ? resourceErrorMessage
-          : "Custom CSS is invalid or unsupported.",
+          : themeCssRejectionKind(cause) === "remote" && cause instanceof Error
+            ? cause.message
+            : "Custom CSS is invalid or unsupported.",
       ),
     );
   }, [activeAppearance, colorsByAppearance, css, open, resourceErrorMessage]);
@@ -1055,7 +1059,9 @@ export function ThemeEditorPanel({
                 <Textarea
                   aria-label="Custom CSS"
                   value={css}
-                  maxLength={THEME_CSS_MAX_LENGTH}
+                  maxLength={
+                    cssUnrestricted ? THEME_CSS_MAX_LENGTH : THEME_CSS_RESTRICTED_MAX_LENGTH
+                  }
                   onChange={(event) => {
                     setCss(event.currentTarget.value);
                     setError(null);

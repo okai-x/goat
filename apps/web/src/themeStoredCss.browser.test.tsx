@@ -69,7 +69,7 @@ it("rejects an unsafe stored theme visibly and keeps the previous theme", async 
     await expect
       .element(
         screen.getByText(
-          "Theme CSS cannot load remote files. Remove @import, image-set(), src(), and any url() that is not data: or #id.",
+          "Images in theme CSS are not supported. Use the background setting instead.",
         ),
       )
       .toBeVisible();

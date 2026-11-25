@@ -213,6 +213,11 @@ export const primaryServerEnvironmentThemesAtom = Atom.make(
   },
 ).pipe(Atom.withLabel("web-server-environment-themes"));
 
+/** Null until the theme environment's settings are known, so a client can keep its last answer. */
+export const themeCssUnrestrictedAtom = Atom.make(
+  (get) => get(themeServerConfigAtom)?.settings.allowUnrestrictedThemeCss ?? null,
+).pipe(Atom.withLabel("web-theme-css-unrestricted"));
+
 export const themeServerSettingsAtom = Atom.make(
   (get) => get(themeServerConfigAtom)?.settings ?? DEFAULT_SERVER_SETTINGS,
 ).pipe(Atom.withLabel("web-theme-server-settings"));

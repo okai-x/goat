@@ -22,6 +22,7 @@ import {
   MAX_THEME_FILE_BYTES,
   MAX_THEME_FILES,
   readPublishedThemes,
+  themeFileLimits,
   readThemeFileGuarded,
 } from "./environmentTheme.ts";
 import * as Settings from "./serverSettings.ts";
@@ -126,9 +127,16 @@ export const layer = Layer.effect(
               return yield* invalid("This theme id cannot be published.");
             if (input.theme && !environmentThemeFileHasColors(input.theme))
               return yield* invalid("A published theme needs colors.");
+            const unrestricted = yield* settings.getSettings.pipe(
+              Effect.map((current) => current.allowUnrestrictedThemeCss),
+              Effect.mapError((cause) => invalid("Cannot read settings.", cause)),
+            );
+            const limits = themeFileLimits(unrestricted);
             const cssResult = yield* Effect.try({
               try: () =>
-                input.theme?.css === undefined ? undefined : sanitizeThemeCss(input.theme.css),
+                input.theme?.css === undefined
+                  ? undefined
+                  : sanitizeThemeCss(input.theme.css, { unrestricted }),
               catch: (cause) => invalid("Invalid theme CSS.", cause),
             });
             const serialized = yield* Effect.try({
@@ -141,14 +149,14 @@ export const layer = Layer.effect(
                     }),
               catch: (cause) => invalid("Invalid theme file.", cause),
             });
-            if (serialized !== undefined && Buffer.byteLength(serialized) > MAX_THEME_FILE_BYTES)
+            if (serialized !== undefined && Buffer.byteLength(serialized) > limits.fileBytes)
               return yield* invalid("Theme file is too large.");
             if (
               serialized === undefined &&
               id !== "" &&
               !BUILT_IN_THEME_IDS.some((builtIn) => builtIn === id)
             ) {
-              const themes = yield* readPublishedThemes(environmentThemesDir).pipe(
+              const themes = yield* readPublishedThemes(environmentThemesDir, unrestricted).pipe(
                 Effect.provideService(FileSystem.FileSystem, fs),
                 Effect.mapError((cause) => invalid("Cannot read themes.", cause)),
               );
@@ -240,7 +248,7 @@ export const layer = Layer.effect(
                 ? stage
                 : stage.pipe(
                     Effect.andThen(
-                      readPublishedThemes(environmentThemesDir).pipe(
+                      readPublishedThemes(environmentThemesDir, unrestricted).pipe(
                         Effect.provideService(FileSystem.FileSystem, fs),
                         Effect.mapError(
                           (cause) =>
@@ -254,7 +262,7 @@ export const layer = Layer.effect(
                           themes.some((theme) => theme.id === id) &&
                           readThemeFileGuarded(
                             NodePath.join(environmentThemesDir, `${id}.json`),
-                            MAX_THEME_FILE_BYTES,
+                            limits.fileBytes,
                           ) === serialized
                             ? Effect.void
                             : Effect.fail(

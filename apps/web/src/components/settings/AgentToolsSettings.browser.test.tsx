@@ -90,6 +90,7 @@ vi.mock(import("./settingsLayout"), async (original) => ({
 }));
 
 import { AgentToolListingSetting, AgentToolsSettings } from "./AgentToolsSettings";
+import { UnrestrictedThemeCssSetting } from "./UnrestrictedThemeCssSetting";
 
 const shippedDefault = DEFAULT_SERVER_SETTINGS.agentToolListing;
 const otherListing: AgentToolListing = shippedDefault === "core" ? "full" : "core";
@@ -149,6 +150,21 @@ it("leaves agent theme writes disabled until a person enables them", async () =>
     expect(state.updateSettings).toHaveBeenCalledWith({
       environmentId: "env",
       input: { patch: { enableAgentThemeWrites: true } },
+    }),
+  );
+});
+
+it("leaves unrestricted theme CSS off until a person turns it on", async () => {
+  setup(shippedDefault);
+  await using screen = await render(<UnrestrictedThemeCssSetting />);
+  const control = screen.getByRole("switch", { name: "Unrestricted theme CSS" });
+  await expect.element(control).not.toBeChecked();
+  control.element().focus();
+  await userEvent.keyboard(" ");
+  await vi.waitFor(() =>
+    expect(state.updateSettings).toHaveBeenCalledWith({
+      environmentId: "env",
+      input: { patch: { allowUnrestrictedThemeCss: true } },
     }),
   );
 });
