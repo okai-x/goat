@@ -84,6 +84,9 @@ export const SETTINGS_ACCESS = {
   enableAgentThemeWrites: person(
     "An agent must not grant itself permission to publish environment themes.",
   ),
+  allowUnrestrictedThemeCss: person(
+    "It lets theme CSS restyle, animate, move or hide any part of the app, so a person decides.",
+  ),
   agentToolListing: agent,
   enableDeviceSupport: person("It turns on control of phones and simulators on this machine."),
   enableCua: path("computer_use.update"),

@@ -58,6 +58,7 @@ vi.mock("../sidebar/brandChannel", () => ({
   useEnvironmentStageLabel: () => null,
 }));
 vi.mock("./ThemeSettings", () => ({ ThemeLibrary: () => null }));
+vi.mock("./UnrestrictedThemeCssSetting", () => ({ UnrestrictedThemeCssSetting: () => null }));
 vi.mock("./TypographySettings", () => ({ TypographySection: () => null }));
 vi.mock("./DesktopWindowMaterialSetting", () => ({ DesktopWindowMaterialSetting: () => null }));
 vi.mock("./settingsLayout", () => ({

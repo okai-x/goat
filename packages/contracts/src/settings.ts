@@ -1290,6 +1290,7 @@ export const ServerSettings = Schema.Struct({
   ),
   defaultTheme: DefaultThemePreference.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
   enableAgentThemeWrites: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
+  allowUnrestrictedThemeCss: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   defaultAppearance: DefaultThemePreference.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
   defaultAppearanceSetAt: Schema.String.check(Schema.isMaxLength(64)).pipe(
     Schema.withDecodingDefault(Effect.succeed("")),
@@ -1706,6 +1707,7 @@ const ServerSettingsPatchFields = Schema.Struct({
   ),
   enableAgentDeviceAccess: Schema.optionalKey(Schema.Boolean),
   enableAgentThemeWrites: Schema.optionalKey(Schema.Boolean),
+  allowUnrestrictedThemeCss: Schema.optionalKey(Schema.Boolean),
   agentToolListing: Schema.optionalKey(AgentToolListing),
   enableDeviceSupport: Schema.optionalKey(Schema.Boolean),
   ...CuaSettingsPatchFields,

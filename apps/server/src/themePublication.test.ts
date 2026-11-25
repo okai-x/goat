@@ -167,6 +167,49 @@ it.layer(NodeServices.layer)("theme publication", (it) => {
       }),
     ),
   );
+  it.effect("publishes unrestricted theme CSS unchanged when the setting allows it", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        const base = yield* fs.makeTempDirectoryScoped({ prefix: "goat-theme-publish-" });
+        const layer = ThemePublication.layer.pipe(
+          Layer.provideMerge(
+            Layer.mergeAll(
+              Settings.layerTest({ enableAgentThemeWrites: true }),
+              ServerConfig.layerTest(process.cwd(), base),
+            ),
+          ),
+        );
+        yield* Effect.gen(function* () {
+          const service = yield* ThemePublication.ThemePublicationService;
+          const settings = yield* Settings.ServerSettingsService;
+          const css = "@keyframes glow{to{opacity:.4}} html.dark body::after{animation:glow 2s}";
+          const publish = service.set(
+            { themeId: "animated", theme: { ...theme, css }, agent: true },
+            Effect.void,
+          );
+          yield* publish.pipe(Effect.flip);
+          yield* settings.updateSettings({ allowUnrestrictedThemeCss: true });
+          yield* publish;
+          const file = yield* fs.readFileString(
+            path.join(base, "userdata", "themes", "animated.json"),
+          );
+          assert.equal(JSON.parse(file).css, css);
+          yield* service
+            .set(
+              {
+                themeId: "remote",
+                theme: { ...theme, css: "body{background:url(https://evil.example/x)}" },
+                agent: true,
+              },
+              Effect.void,
+            )
+            .pipe(Effect.flip);
+        }).pipe(Effect.provide(layer));
+      }),
+    ),
+  );
   it.effect("publishes and selects a theme, refreshes selection, and clears it", () =>
     Effect.scoped(
       Effect.gen(function* () {

@@ -32,6 +32,9 @@ import { useComposerDraftStore } from "./composerDraftStore";
 import { startHostEnvironmentLookup } from "./state/desktopHostEnvironment";
 import { startDefaultThemeAdoption } from "./hooks/useDefaultTheme";
 import { startThemeBackground } from "./themeBackground";
+import { startThemeCssPolicy } from "./themeCssPolicy";
+import { refreshTheme } from "./hooks/useTheme";
+import { themeCssUnrestrictedAtom } from "./state/server";
 import {
   getClientSettings,
   startModelPreferencesMigration,
@@ -161,6 +164,12 @@ export function startAppServices(): AppRouter {
   startI18n();
   startDocumentTitle(router);
   startHostEnvironmentLookup();
+  startThemeCssPolicy({
+    read: () => appAtomRegistry.get(themeCssUnrestrictedAtom),
+    subscribe: (listener) => appAtomRegistry.subscribe(themeCssUnrestrictedAtom, listener),
+    // An open theme editor keeps its preview; closing it reapplies the theme under the new policy.
+    onChange: () => refreshTheme({ preservePreview: true }),
+  });
   startDefaultThemeAdoption();
   startThemeBackground();
   startModelPreferencesMigration();

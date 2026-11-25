@@ -73,6 +73,22 @@ The editor also accepts scoped CSS for colors and opacity on supported app eleme
 load images or other resources; use the background setting for images. Themes with unsupported
 CSS are rejected when imported or saved.
 
+### Unrestricted theme CSS
+
+Turn on **Unrestricted theme CSS** in **Settings → Appearance** to use themes whose CSS goes beyond
+colors, such as themes made for upstream T3 Code. It is off by default, and agents cannot turn it on.
+With it on, a theme can carry up to 100,000 characters of CSS that restyles, animates, moves, or
+hides any part of the app, so use themes from sources you trust: one can slow the app or leave it
+hard to use. Switch to a built-in theme to undo that. Use `.dark` or `:root:not(.dark)` to target
+one appearance.
+
+Theme CSS still cannot load remote files: `@import`, `image-set()`, and `src()` are refused, and
+`url()` works only with a `data:` address or an `#id`.
+
+The setting belongs to the server that provides your environment themes. Turning it off stops that
+server publishing themes that need it, and a selected theme that needs it falls back to a standard
+theme.
+
 ## Environment themes
 
 Environment themes and defaults come from the server serving your web app or the desktop app's
@@ -113,7 +129,11 @@ Do not use `system`, `light`, `dark`, or a built-in theme's ID.
 To add a published background, place a PNG, JPEG, or WebP image of at most 16 MiB beside the
 theme file with the same name, such as `nightfall.png`. Web and desktop show it when the published
 theme is selected. A saved theme with the same ID keeps its own appearance and does not use the
-published background.
+published background. GOAT shows the image dimmed behind the conversation; with unrestricted theme
+CSS on, a theme can place it elsewhere with `var(--theme-background-image)`.
+
+A theme file can be up to 32 KB and the folder's themes 192 KB together. With unrestricted theme
+CSS on, those limits are about 600 KB and 2 MiB.
 
 For an integration that generates a palette, this shorter format also works:
 

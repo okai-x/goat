@@ -7,6 +7,8 @@ import {
   EnvironmentThemeFile,
   EnvironmentThemeId,
   environmentThemeFileHasColors,
+  THEME_CSS_MAX_LENGTH,
+  THEME_CSS_RESTRICTED_MAX_LENGTH,
   ThemeCssValidationError,
 } from "@goat/contracts";
 import { UNPUBLISHABLE_THEME_IDS } from "@goat/shared/themePalettes";
@@ -27,6 +29,7 @@ import * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
 
 import * as ServerConfig from "./config.ts";
+import { ServerSettingsService } from "./serverSettings.ts";
 import { supervise } from "./backgroundSupervision.ts";
 import { fileWatchResync } from "./fileWatchResync.ts";
 import { readThemeDirectory } from "./themeDirectory.ts";
@@ -44,8 +47,26 @@ const THEME_FILE_SUFFIX = ".json";
 
 export const MAX_THEME_FILES = 32;
 /** Shared with publishing so it cannot accept files the watcher skips. */
-export const MAX_THEME_FILE_BYTES = 32 * 1024;
-const MAX_THEME_TOTAL_BYTES = 192 * 1024;
+/**
+ * The largest theme file under either policy, for readers that only need the file's bytes.
+ * JSON can spend six bytes on one CSS character; the rest is room for the colors.
+ */
+export const MAX_THEME_FILE_BYTES = 6 * THEME_CSS_MAX_LENGTH + 16 * 1024;
+
+/** Themes a client can decode: one that predates unrestricted theme CSS fails on longer CSS. */
+export const themesForClient = (
+  themes: ReadonlyArray<EnvironmentTheme>,
+  decodesUnrestrictedCss: boolean,
+): ReadonlyArray<EnvironmentTheme> =>
+  decodesUnrestrictedCss
+    ? themes
+    : themes.filter((theme) => (theme.css?.length ?? 0) <= THEME_CSS_RESTRICTED_MAX_LENGTH);
+
+/** Size limits for the theme CSS policy in force. Publishing and the watcher must agree on them. */
+export const themeFileLimits = (unrestricted: boolean) =>
+  unrestricted
+    ? { fileBytes: MAX_THEME_FILE_BYTES, totalBytes: 2 * 1024 * 1024 }
+    : { fileBytes: 32 * 1024, totalBytes: 192 * 1024 };
 
 interface PublishedThemes {
   readonly seq: number;
@@ -99,7 +120,9 @@ export const readThemeFileGuarded = (filePath: string, maxBytes: number): string
   }
 };
 
-export const readPublishedThemes = Effect.fn(function* (themesDir: string) {
+/** `unrestricted` is the allowUnrestrictedThemeCss setting; left out, the restricted policy applies. */
+export const readPublishedThemes = Effect.fn(function* (themesDir: string, unrestricted = false) {
+  const limits = themeFileLimits(unrestricted);
   const result = yield* Effect.try(() => readThemeDirectory(themesDir)).pipe(Effect.result);
   if (result._tag === "Failure") {
     yield* Effect.logWarning("cannot read bounded environment theme directory", {
@@ -130,11 +153,11 @@ export const readPublishedThemes = Effect.fn(function* (themesDir: string) {
     }
 
     const filePath = `${themesDir}/${entry}`;
-    const raw = readThemeFileGuarded(filePath, MAX_THEME_FILE_BYTES);
+    const raw = readThemeFileGuarded(filePath, limits.fileBytes);
     if (raw === null) {
       yield* Effect.logWarning("ignoring unusable environment theme file", {
         path: filePath,
-        limit: MAX_THEME_FILE_BYTES,
+        limit: limits.fileBytes,
       });
       continue;
     }
@@ -155,10 +178,10 @@ export const readPublishedThemes = Effect.fn(function* (themesDir: string) {
     }
 
     totalBytes += Buffer.byteLength(raw);
-    if (totalBytes > MAX_THEME_TOTAL_BYTES) {
+    if (totalBytes > limits.totalBytes) {
       yield* Effect.logWarning("ignoring environment themes past the total size limit", {
         path: themesDir,
-        limit: MAX_THEME_TOTAL_BYTES,
+        limit: limits.totalBytes,
       });
       break;
     }
@@ -166,7 +189,7 @@ export const readPublishedThemes = Effect.fn(function* (themesDir: string) {
     const checked = yield* Effect.try(() => ({
       id,
       ...file,
-      ...(file.css === undefined ? {} : { css: sanitizeThemeCss(file.css) }),
+      ...(file.css === undefined ? {} : { css: sanitizeThemeCss(file.css, { unrestricted }) }),
     })).pipe(Effect.result);
     if (checked._tag === "Failure") {
       yield* Effect.logWarning("ignoring environment theme with invalid CSS", { path: filePath });
@@ -194,6 +217,16 @@ export const readPublishedThemes = Effect.fn(function* (themesDir: string) {
 const make = Effect.gen(function* () {
   const { environmentThemesDir } = yield* ServerConfig.ServerConfig;
   const fs = yield* FileSystem.FileSystem;
+  const settings = yield* ServerSettingsService;
+  // Unreadable settings keep the restricted policy, the same as the setting's default.
+  const unrestrictedCss = settings.getSettings.pipe(
+    Effect.map((current) => current.allowUnrestrictedThemeCss),
+    Effect.catch((error) =>
+      Effect.logWarning("cannot read the theme CSS policy; keeping it restricted", {
+        operation: error.operation,
+      }).pipe(Effect.as(false)),
+    ),
+  );
   // Sequence numbers let subscribers drop queued events older than their initial snapshot.
   const changes = yield* PubSub.sliding<PublishedThemes>(1);
   const published = yield* Ref.make<PublishedThemes>({ seq: 0, themes: [] });
@@ -204,7 +237,7 @@ const make = Effect.gen(function* () {
 
   const refresh = refreshSemaphore.withPermits(1)(
     Effect.gen(function* () {
-      const themes = yield* readPublishedThemes(environmentThemesDir).pipe(
+      const themes = yield* readPublishedThemes(environmentThemesDir, yield* unrestrictedCss).pipe(
         Effect.provideService(FileSystem.FileSystem, fs),
       );
       // Compare the whole value so new fields cannot silently miss republishes.
@@ -226,6 +259,18 @@ const make = Effect.gen(function* () {
     .pipe(Effect.ignoreCause({ log: true }));
 
   yield* refresh;
+  // Turning the setting on or off changes which theme files are published.
+  yield* supervise(
+    "EnvironmentTheme.policy",
+    () =>
+      settings.streamChanges.pipe(
+        Stream.map((current) => current.allowUnrestrictedThemeCss),
+        Stream.changes,
+        Stream.runForEach(() => refresh),
+      ),
+    // A settings double has no changes to wait for; do not spin on its empty stream.
+    { restartOnSuccess: false },
+  ).pipe(Effect.forkIn(watcherScope), Effect.asVoid);
   yield* supervise("EnvironmentTheme.watch", () =>
     fileWatchResync(environmentThemesDir).pipe(
       Stream.debounce(Duration.millis(100)),
@@ -235,13 +280,14 @@ const make = Effect.gen(function* () {
 
   return {
     current: Effect.map(refresh, (state) => state.themes),
-    validateCss: Effect.fn("EnvironmentTheme.validateCss")((css: string) =>
-      Effect.try({
-        try: () => sanitizeThemeCss(css),
+    validateCss: Effect.fn("EnvironmentTheme.validateCss")(function* (css: string) {
+      const unrestricted = yield* unrestrictedCss;
+      return yield* Effect.try({
+        try: () => sanitizeThemeCss(css, { unrestricted }),
         catch: () =>
           new ThemeCssValidationError({ message: "Custom CSS is invalid or unsupported." }),
-      }),
-    ),
+      });
+    }),
     get streamChanges() {
       return Stream.unwrap(
         Effect.gen(function* () {

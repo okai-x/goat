@@ -145,6 +145,7 @@ function AutomationMessageRow({ row }: { row: Extract<TimelineRow, { kind: "mess
           "min-w-0 max-w-[80%] rounded-2xl bg-message text-message-foreground",
           expanded && "w-full",
         )}
+        data-user-message-bubble=""
       >
         <MessageAuthorHeading>Automation</MessageAuthorHeading>
         <FoldedMessageHeader
@@ -517,6 +518,7 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
           folded ? "max-w-[80%]" : "max-w-[70%] px-4 py-2.5",
           folded && expanded && "w-full",
         )}
+        data-user-message-bubble=""
       >
         <MessageAuthorHeading>
           {folded

@@ -6,6 +6,7 @@ import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
 import { HttpRouter } from "effect/http";
 import * as ServerConfig from "../config.ts";
+import * as Settings from "../serverSettings.ts";
 import * as SecretStore from "../auth/ServerSecretStore.ts";
 import * as EnvironmentTheme from "../environmentTheme.ts";
 import * as ServerHttp from "../http.ts";
@@ -54,6 +55,7 @@ it.live(
         assert.isString(revision);
         const envLayer = EnvironmentTheme.layer.pipe(
           Layer.provide(configLayer),
+          Layer.provide(Settings.layerTest()),
           Layer.provide(NodeServices.layer),
         );
         const issued = yield* issueThemeBackgroundUrl("nightfall", revision!).pipe(

@@ -7,6 +7,7 @@ import {
 import { connectionAtomRuntime } from "./connection/runtime";
 import { appAtomRegistry } from "./rpc/atomRegistry";
 import { themeEnvironmentIdAtom } from "./state/desktopHostEnvironment";
+import { themeCssUnrestricted } from "./themeCssPolicy";
 
 const validate = createEnvironmentRpcCommand(connectionAtomRuntime, {
   label: "environment-data:theme:validate-css",
@@ -15,7 +16,7 @@ const validate = createEnvironmentRpcCommand(connectionAtomRuntime, {
 
 export async function validateThemeCssForSave(css: string): Promise<string> {
   const { sanitizeThemeCss } = await import("@goat/shared/themeCssSanitizer");
-  sanitizeThemeCss(css);
+  sanitizeThemeCss(css, { unrestricted: themeCssUnrestricted() });
   const environmentId = appAtomRegistry.get(themeEnvironmentIdAtom);
   if (environmentId === null) throw new Error("Connect to an environment to save custom CSS.");
   const result = await runAtomCommand(

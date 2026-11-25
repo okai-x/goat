@@ -1,20 +1,82 @@
-import { THEME_CSS_MAX_LENGTH } from "@goat/contracts";
+import { themeCssValueFetches } from "@goat/shared/themeCss";
 
+import { themeCssUnrestricted } from "./themeCssPolicy";
+
+// Theme CSS comes from imported files and from agents, so it must not fetch: a
+// url() on an attribute selector can send what is on screen to another host.
+// The browser parses the text first, so the checks see normalized values and
+// CSS escapes in a function name cannot dodge them.
+
+let themeSheet: CSSStyleSheet | null = null;
+let appliedKey = "";
 let revision = 0;
-let sheet: CSSStyleSheet | null = null;
 
+type RuleParent = Pick<CSSStyleSheet, "cssRules" | "deleteRule">;
+
+// @keyframes also has both members, but its deleteRule takes a keyframe selector.
+const isRuleParent = (rule: CSSRule): rule is CSSRule & RuleParent =>
+  "cssRules" in rule && "deleteRule" in rule && !(rule instanceof CSSKeyframesRule);
+
+function stripDeclarations(rule: CSSRule): boolean {
+  if (!("style" in rule) || !(rule.style instanceof CSSStyleDeclaration)) return false;
+  for (let item = rule.style.length - 1; item >= 0; item--) {
+    const property = rule.style.item(item);
+    if (themeCssValueFetches(rule.style.getPropertyValue(property))) {
+      rule.style.removeProperty(property);
+    }
+  }
+  // A shorthand holding var() lists longhands with empty values until substitution, so an escaped
+  // url() in it is only visible in the block as written. Such a block is dropped whole.
+  if (themeCssValueFetches(rule.style.cssText)) rule.style.cssText = "";
+  return true;
+}
+
+/** Keeps only rule shapes it can check, so a new at-rule that fetches is dropped by default. */
+function stripFetches(parent: RuleParent): void {
+  for (let index = parent.cssRules.length - 1; index >= 0; index--) {
+    const rule = parent.cssRules[index];
+    if (!rule) continue;
+    const hasStyle = stripDeclarations(rule);
+    if (rule instanceof CSSKeyframesRule) {
+      for (const frame of rule.cssRules) stripDeclarations(frame);
+    } else if (isRuleParent(rule)) {
+      stripFetches(rule);
+    } else if (rule instanceof CSSPropertyRule) {
+      // A registered property's initial value is used wherever var() reads it.
+      if (themeCssValueFetches(rule.initialValue ?? "")) parent.deleteRule(index);
+    } else if (
+      !hasStyle &&
+      !(rule instanceof CSSLayerStatementRule) &&
+      // Names a namespace without loading it. CSSOM refuses to delete one while style rules remain.
+      !(rule instanceof CSSNamespaceRule)
+    ) {
+      parent.deleteRule(index);
+    }
+  }
+}
+
+/**
+ * Replaces the theme stylesheet. Rejects, leaving no theme CSS applied, when the CSS breaks the
+ * policy in force. Unchanged CSS is left alone: replacing a sheet restarts its animations.
+ */
 export async function applyThemeCss(css: string | undefined): Promise<void> {
   const current = ++revision;
   if (typeof document === "undefined" || typeof CSSStyleSheet === "undefined") return;
-  if (sheet !== null) sheet.replaceSync("");
+  const unrestricted = themeCssUnrestricted();
+  const key = css ? `${unrestricted ? "unrestricted" : "restricted"}:${css}` : "";
+  if (key === appliedKey) return;
+  appliedKey = "";
+  themeSheet?.replaceSync("");
   if (!css) return;
-  if (css.length > THEME_CSS_MAX_LENGTH) throw new Error("Theme CSS is too large");
   const { sanitizeThemeCss } = await import("@goat/shared/themeCssSanitizer");
-  const scoped = sanitizeThemeCss(css);
+  const checked = sanitizeThemeCss(css, { unrestricted });
   if (current !== revision) return;
-  if (sheet === null) {
-    sheet = new CSSStyleSheet();
-    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+  if (!themeSheet) {
+    // Adopted sheets order after the document's own, and they cannot hold @import.
+    themeSheet = new CSSStyleSheet();
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, themeSheet];
   }
-  sheet.replaceSync(scoped);
+  themeSheet.replaceSync(checked);
+  stripFetches(themeSheet);
+  appliedKey = key;
 }

@@ -77,6 +77,24 @@ describe("goat theme", () => {
       assert.equal(NodeFS.existsSync(NodePath.join(baseDir, "userdata", "themes")), false);
     }),
   );
+  it.effect("publishes a theme with animation CSS only when the settings file allows it", () =>
+    Effect.gen(function* () {
+      const baseDir = makeBaseDir();
+      const css = "@keyframes glow{to{opacity:.4}} html.dark body::after{animation:glow 2s}";
+      const themeFile = NodePath.join(baseDir, "animated.json");
+      NodeFS.writeFileSync(themeFile, JSON.stringify({ ...JSON.parse(NIGHTFALL_THEME_JSON), css }));
+      const published = NodePath.join(baseDir, "userdata", "themes", "animated.json");
+
+      yield* runCli(["theme", "set", themeFile, "--base-dir", baseDir]).pipe(Effect.flip);
+      assert.equal(NodeFS.existsSync(published), false);
+
+      writeSettings(baseDir, { allowUnrestrictedThemeCss: true });
+      yield* runCli(["theme", "set", themeFile, "--base-dir", baseDir]);
+      assert.equal(JSON.parse(NodeFS.readFileSync(published, "utf8")).css, css);
+      assert.equal(readSettings(baseDir).defaultTheme, "animated");
+      assert.equal(readSettings(baseDir).allowUnrestrictedThemeCss, true);
+    }),
+  );
   it.effect("preserves settings it does not recognise", () =>
     Effect.gen(function* () {
       const baseDir = makeBaseDir();

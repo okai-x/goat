@@ -480,7 +480,9 @@ const EnvironmentThemeColors = Schema.Record(
   TrimmedNonEmptyString.check(Schema.isMaxLength(64)),
 );
 
-export const THEME_CSS_MAX_LENGTH = 20_000;
+/** The most CSS a theme may carry on the wire; the restricted policy accepts less. */
+export const THEME_CSS_MAX_LENGTH = 100_000;
+export const THEME_CSS_RESTRICTED_MAX_LENGTH = 20_000;
 export class ThemeCssValidationError extends Schema.TaggedError<ThemeCssValidationError>()(
   "ThemeCssValidationError",
   { message: Schema.String },

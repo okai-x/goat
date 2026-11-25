@@ -1,5 +1,6 @@
 import { VCS_STATUS_WS_METHODS, VcsStatusRpcs } from "./vcsStatusRpc.ts";
 import { THEME_WS_METHODS, WsThemeValidateCssRpc, WsThemeBackgroundUrlRpc } from "./themeRpc.ts";
+import { THEME_CONFIG_SUBSCRIPTION_FIELDS } from "./themeRpc.ts";
 import { PULL_REQUEST_WS_METHODS } from "./pullRequestMethods.ts";
 import {
   SOURCE_CONTROL_STAR_METHODS,
@@ -2173,8 +2174,7 @@ const WsSubscribeTerminalMetadataRpc = Rpc.make(WS_METHODS.subscribeTerminalMeta
 
 export const WsSubscribeServerConfigRpc = Rpc.make(WS_METHODS.subscribeServerConfig, {
   payload: Schema.Struct({
-    /** Opt-in protects older clients that reject unknown theme event types. */
-    environmentThemes: Schema.optional(Schema.Boolean),
+    ...THEME_CONFIG_SUBSCRIPTION_FIELDS,
     usageLimitSources: Schema.optional(Schema.Boolean),
     /** Advertise client handling before the server offers /usage-limits, or older clients send it as a prompt. */
     usageLimitsCommand: Schema.optional(Schema.Boolean),

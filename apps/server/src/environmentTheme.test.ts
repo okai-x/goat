@@ -1,4 +1,4 @@
-import { EnvironmentThemeFile } from "@goat/contracts";
+import { EnvironmentThemeFile, type ServerSettings } from "@goat/contracts";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
@@ -7,6 +7,7 @@ import * as Exit from "effect/Exit";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
+import * as PubSub from "effect/PubSub";
 import * as PlatformError from "effect/PlatformError";
 import * as Queue from "effect/Queue";
 import * as Schema from "effect/Schema";
@@ -15,6 +16,7 @@ import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
 
 import * as ServerConfig from "./config.ts";
+import * as Settings from "./serverSettings.ts";
 import * as EnvironmentTheme from "./environmentTheme.ts";
 import { symlinksSupported } from "@goat/shared/testing/symlinks";
 
@@ -26,6 +28,9 @@ const NIGHTFALL_THEME: EnvironmentThemeFile = {
   canvas: "#1a1b26",
   accent: "#7aa2f7",
 };
+
+const T3_CODE_CSS =
+  '@keyframes glow{to{opacity:.4}} html.dark body::after{content:"";animation:glow 2s infinite;background:url("data:image/png;base64,AA==")}';
 
 const SHARED_THEME: EnvironmentThemeFile = {
   version: 1,
@@ -44,7 +49,9 @@ const withEnvironmentThemes = <A, E>(
     | FileSystem.FileSystem
     | Path.Path
     | Scope.Scope
+    | Settings.ServerSettingsService
   >,
+  settings: { readonly allowUnrestrictedThemeCss?: boolean } = {},
 ) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
@@ -59,7 +66,12 @@ const withEnvironmentThemes = <A, E>(
     return yield* body.pipe(
       Effect.provide(
         EnvironmentTheme.layer.pipe(
-          Layer.provideMerge(ServerConfig.layerTest(process.cwd(), baseDir)),
+          Layer.provideMerge(
+            Layer.mergeAll(
+              ServerConfig.layerTest(process.cwd(), baseDir),
+              Settings.layerTest(settings),
+            ),
+          ),
         ),
       ),
     );
@@ -151,6 +163,130 @@ it.layer(NodeServices.layer)("environment theme", (it) => {
         assert.include(themes[0]?.css ?? "", "[data-goat-theme-root]");
       }),
     ),
+  );
+  it.effect("publishes unrestricted theme CSS unchanged only while the setting is on", () =>
+    withEnvironmentThemes(
+      {
+        "animated.json": JSON.stringify({ ...NIGHTFALL_THEME, css: T3_CODE_CSS }),
+        "remote.json": JSON.stringify({
+          ...NIGHTFALL_THEME,
+          css: "body{background:url(https://evil.example/x)}",
+        }),
+      },
+      Effect.gen(function* () {
+        const settings = yield* Settings.ServerSettingsService;
+        assert.deepEqual(yield* currentThemes, []);
+        yield* settings.updateSettings({ allowUnrestrictedThemeCss: true });
+        const themes = yield* currentThemes;
+        assert.deepEqual(
+          themes.map((theme) => [theme.id, theme.css]),
+          [["animated", T3_CODE_CSS]],
+        );
+        yield* settings.updateSettings({ allowUnrestrictedThemeCss: false });
+        assert.deepEqual(yield* currentThemes, []);
+      }),
+    ),
+  );
+  it.effect("pushes the changed theme list to a subscribed client when the setting changes", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "goat-theme-policy-" });
+      const themesDir = path.join(baseDir, "userdata", "themes");
+      yield* fs.makeDirectory(themesDir, { recursive: true });
+      yield* fs.writeFileString(
+        path.join(themesDir, "animated.json"),
+        JSON.stringify({ ...NIGHTFALL_THEME, css: T3_CODE_CSS }),
+      );
+      const settingsChanges = yield* PubSub.unbounded<ServerSettings>();
+      const watching = yield* Deferred.make<void>();
+      // The stock double reports no changes, so wrap it with a change stream the test can await.
+      const settingsLayer = Layer.effect(
+        Settings.ServerSettingsService,
+        Effect.gen(function* () {
+          const base = yield* Settings.ServerSettingsService;
+          return Settings.ServerSettingsService.of({
+            ...base,
+            updateSettings: (patch) =>
+              base
+                .updateSettings(patch)
+                .pipe(Effect.tap((next) => PubSub.publish(settingsChanges, next))),
+            streamChanges: Stream.unwrap(
+              PubSub.subscribe(settingsChanges).pipe(
+                Effect.tap(() => Deferred.succeed(watching, undefined)),
+                Effect.map(Stream.fromSubscription),
+              ),
+            ),
+          });
+        }),
+      ).pipe(Layer.provide(Settings.layerTest()));
+      yield* Effect.gen(function* () {
+        const service = yield* EnvironmentTheme.EnvironmentThemeService;
+        const settings = yield* Settings.ServerSettingsService;
+        const received = yield* Queue.unbounded<ReadonlyArray<string>>();
+        yield* service.streamChanges.pipe(
+          Stream.runForEach((themes) =>
+            Queue.offer(
+              received,
+              themes.map((theme) => theme.id),
+            ),
+          ),
+          Effect.forkScoped,
+        );
+        assert.deepEqual(yield* Queue.take(received), []);
+        yield* Deferred.await(watching);
+        yield* settings.updateSettings({ allowUnrestrictedThemeCss: true });
+        assert.deepEqual(yield* Queue.take(received), ["animated"]);
+        yield* settings.updateSettings({ allowUnrestrictedThemeCss: false });
+        assert.deepEqual(yield* Queue.take(received), []);
+      }).pipe(
+        Effect.provide(
+          EnvironmentTheme.layer.pipe(
+            Layer.provideMerge(
+              Layer.mergeAll(ServerConfig.layerTest(process.cwd(), baseDir), settingsLayer),
+            ),
+          ),
+        ),
+      );
+    }).pipe(Effect.scoped),
+  );
+  it("leaves themes with long CSS out for a client that predates unrestricted theme CSS", () => {
+    const theme = (id: string, css: string) => ({ ...NIGHTFALL_THEME, id, css });
+    const themes = [theme("short", "x".repeat(20_000)), theme("long", "x".repeat(20_001))];
+    assert.deepEqual(
+      EnvironmentTheme.themesForClient(themes, false).map((item) => item.id),
+      ["short"],
+    );
+    assert.deepEqual(EnvironmentTheme.themesForClient(themes, true), themes);
+  });
+  it.effect("validates client CSS against the unrestricted policy when the setting is on", () =>
+    withEnvironmentThemes(
+      {},
+      Effect.gen(function* () {
+        const service = yield* EnvironmentTheme.EnvironmentThemeService;
+        assert.equal(yield* service.validateCss(T3_CODE_CSS), T3_CODE_CSS);
+        const failure = yield* service
+          .validateCss('@import "https://evil.example/x.css";')
+          .pipe(Effect.flip);
+        assert.equal(failure._tag, "ThemeCssValidationError");
+      }),
+      { allowUnrestrictedThemeCss: true },
+    ),
+  );
+  it.effect("reads a theme file past the restricted size limit only when the setting is on", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const dir = yield* fs.makeTempDirectoryScoped({ prefix: "goat-theme-large-" });
+      const css = `/* ${"x".repeat(60_000)} */ body{color:red}`;
+      yield* fs.writeFileString(
+        path.join(dir, "large.json"),
+        JSON.stringify({ ...NIGHTFALL_THEME, css }),
+      );
+      assert.deepEqual(yield* EnvironmentTheme.readPublishedThemes(dir), []);
+      const themes = yield* EnvironmentTheme.readPublishedThemes(dir, true);
+      assert.equal(themes[0]?.css, css);
+    }).pipe(Effect.scoped),
   );
   it.effect("reattaches themes before resyncing and stops watching when its scope closes", () =>
     Effect.gen(function* () {
