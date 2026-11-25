@@ -200,15 +200,29 @@ const make = Effect.gen(function* () {
     sql`UPDATE channel_runtime_state SET value_json = ${ChannelBotProfiles.encodeProfile(record)},
       updated_at = ${at} WHERE key = ${botProfileKey(ownerId, record.botId)}`;
 
-  /** Starts the member's session thread and records its ref; the same ids on every retry. */
+  /**
+   * Starts the member's session thread and records its ref; the same ids on every retry. A ref
+   * whose thread was deleted gets a new thread in its place, since a deleted thread shows nothing.
+   */
   const launchMember = Effect.fn("ChannelBotMembers.launch")(function* (
     ownerId: string,
     record: MemberRecord,
   ) {
-    if ((yield* ledger.getBotById(ownerId, record.botId)) !== undefined) return;
+    const ref = yield* ledger.getBotById(ownerId, record.botId);
+    const replacing =
+      ref === undefined
+        ? undefined
+        : yield* threads.getThreadRecords(ref.bot.threadId, []).pipe(
+            Effect.map((records) =>
+              records.thread.deletedAt === null ? undefined : ref.bot.threadId,
+            ),
+            // An unreadable thread keeps the stored ref as is.
+            Effect.orElseSucceed(() => undefined),
+          );
+    if (ref !== undefined && replacing === undefined) return;
     const project = yield* folders.ensureBotProject;
     const settings = yield* serverSettings.getSettings;
-    const ids = memberBotLaunchIdsFor(ownerId, record.botId);
+    const ids = memberBotLaunchIdsFor(ownerId, record.botId, replacing);
     yield* launches.launch({
       commandId: ids.commandId,
       threadId: ids.threadId,
@@ -221,16 +235,22 @@ const make = Effect.gen(function* () {
       createdBy: "system",
       creationSource: "server",
     });
-    yield* ledger.setMemberBotIfAbsent({
-      ownerId,
-      botId: record.botId,
-      bot: {
-        environmentId: record.environmentId,
-        projectId: project.projectId,
-        threadId: ids.threadId,
-      },
-      now: yield* now,
-    });
+    const bot = {
+      environmentId: record.environmentId,
+      projectId: project.projectId,
+      threadId: ids.threadId,
+    };
+    const stored =
+      replacing === undefined
+        ? yield* ledger.setMemberBotIfAbsent({ ownerId, botId: record.botId, bot, now: yield* now })
+        : yield* ledger.replaceMemberBot({
+            ownerId,
+            botId: record.botId,
+            previousThreadId: replacing,
+            bot,
+            now: yield* now,
+          });
+    if (stored.threadId !== ids.threadId) return;
     // The timeline takes records only once the thread is the bot's. A greeting that fails, or a
     // creation interrupted just before it, leaves the bot without one; creating still succeeds.
     yield* recordMemberGreeting(timeline.record, {
@@ -298,8 +318,11 @@ const make = Effect.gen(function* () {
           AND json_extract(p.value_json, '$.role') = 'member'
           AND (json_extract(p.value_json, '$.lifecycle.pending') IS NOT NULL
             OR (COALESCE(json_extract(p.value_json, '$.state'), 'active') = 'active'
-              AND NOT EXISTS (SELECT 1 FROM channel_runtime_state r
-                WHERE r.key = 'bot: ' || substr(p.key, ${PROFILE_PREFIX.length + 1}))))
+              AND (NOT EXISTS (SELECT 1 FROM channel_runtime_state r
+                  WHERE r.key = 'bot: ' || substr(p.key, ${PROFILE_PREFIX.length + 1}))
+                OR EXISTS (SELECT 1 FROM orchestration_v2_projection_threads t
+                  WHERE t.thread_id = json_extract(p.value_json, '$.sessionThreadId')
+                    AND t.deleted_at IS NOT NULL))))
         ORDER BY p.key LIMIT ${RECONCILE_BATCH}`;
     const found: Array<{ readonly ownerId: string; readonly record: MemberRecord }> = [];
     for (const row of rows) {
