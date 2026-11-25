@@ -70,7 +70,7 @@ theme. The theme editor's color picker lets you select an area of the app to fin
 change. Export your theme as JSON to share it.
 
 A theme can also carry up to 100,000 characters of CSS, applied after GOAT's own styles. Themes
-written for T3 Code work unchanged: use `.dark` or `:root:not(.dark)` to target one appearance.
+made for upstream T3 Code work unchanged: use `.dark` or `:root:not(.dark)` to target one appearance.
 Theme CSS can restyle, animate, move, or hide any part of the app, so import themes only from
 sources you trust and switch to a built-in theme if one leaves the app hard to use. It cannot load
 remote files: `@import`, `image-set()`, and `src()` are refused, and `url()` works only with a
