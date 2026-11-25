@@ -129,7 +129,12 @@ export const layer = Layer.effect(
               return yield* invalid("A published theme needs colors.");
             const unrestricted = yield* settings.getSettings.pipe(
               Effect.map((current) => current.allowUnrestrictedThemeCss),
-              Effect.mapError((cause) => invalid("Cannot read settings.", cause)),
+              // Unreadable settings keep the restricted policy, the same as the setting's default.
+              Effect.catch((error) =>
+                Effect.logWarning("cannot read the theme CSS policy; keeping it restricted", {
+                  operation: error.operation,
+                }).pipe(Effect.as(false)),
+              ),
             );
             const limits = themeFileLimits(unrestricted);
             const cssResult = yield* Effect.try({

@@ -85,3 +85,31 @@ it("refuses unrestricted theme CSS that plainly loads a remote file and applies 
   expect(color).not.toBe("rgb(1, 2, 3)");
   expect(color).not.toBe("rgb(4, 5, 6)");
 });
+
+// Regression: a shorthand pending var() substitution reports empty longhands, which hid the fetch.
+it.each(["background", "mask", "border-image", "list-style"])(
+  "drops a %s shorthand that hides an escaped url() behind var()",
+  async (shorthand) => {
+    const probe = document.createElement("div");
+    probe.dataset.themeCssProbe = "";
+    document.body.append(probe);
+    using _probe = { [Symbol.dispose]: () => probe.remove() };
+    await using _css = { [Symbol.asyncDispose]: () => applyThemeCss(undefined) };
+
+    await applyThemeCss(`
+      [data-theme-css-probe] { --n: ; ${shorthand}: var(--n) u\\72l(https://example.com/a); }
+      [data-theme-css-probe] { color: rgb(1, 2, 3); }
+    `);
+
+    const kept = document.adoptedStyleSheets.flatMap((sheet) =>
+      Array.from(sheet.cssRules, (rule) => rule.cssText),
+    );
+    expect(kept.join("\n")).not.toMatch(/example\.com|72l/);
+    const style = getComputedStyle(probe);
+    expect(style.backgroundImage).toBe("none");
+    expect(style.maskImage).toBe("none");
+    expect(style.borderImageSource).toBe("none");
+    expect(style.listStyleImage).toBe("none");
+    expect(style.color).toBe("rgb(1, 2, 3)");
+  },
+);

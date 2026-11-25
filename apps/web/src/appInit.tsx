@@ -167,7 +167,8 @@ export function startAppServices(): AppRouter {
   startThemeCssPolicy({
     read: () => appAtomRegistry.get(themeCssUnrestrictedAtom),
     subscribe: (listener) => appAtomRegistry.subscribe(themeCssUnrestrictedAtom, listener),
-    onChange: refreshTheme,
+    // An open theme editor keeps its preview; closing it reapplies the theme under the new policy.
+    onChange: () => refreshTheme({ preservePreview: true }),
   });
   startDefaultThemeAdoption();
   startThemeBackground();

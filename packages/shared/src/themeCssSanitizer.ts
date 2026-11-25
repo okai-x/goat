@@ -4,15 +4,20 @@ import { ThemeCssRemoteFileError } from "./themeCssErrors.ts";
 import { restrictThemeCss } from "./themeCssRestricted.ts";
 
 /**
- * Checks theme CSS and returns the text to apply. Leaving `unrestricted` out keeps the restricted
- * policy, so a caller that forgets the setting cannot widen it. Unrestricted CSS comes back
- * unchanged; that check is early feedback, and the client drops fetching declarations on apply.
+ * Returns the theme CSS to apply. Without `unrestricted` the restricted policy holds, so a caller
+ * that forgets the setting cannot widen it. CSS that fits the restricted policy is scoped the same
+ * under either policy. Other unrestricted CSS comes back unchanged; the client guards its fetches.
  */
 export function sanitizeThemeCss(
   css: string,
   options?: { readonly unrestricted?: boolean },
 ): string {
   if (options?.unrestricted !== true) return restrictThemeCss(css);
+  try {
+    return restrictThemeCss(css);
+  } catch {
+    // Not a restricted theme; judge it by the unrestricted rule below.
+  }
   if (css.length > THEME_CSS_MAX_LENGTH) throw new Error("Theme CSS is too large");
   if (themeCssLoadsRemoteFiles(css)) throw new ThemeCssRemoteFileError();
   return css;

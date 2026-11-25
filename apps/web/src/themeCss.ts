@@ -25,6 +25,9 @@ function stripDeclarations(rule: CSSRule): boolean {
       rule.style.removeProperty(property);
     }
   }
+  // A shorthand holding var() lists longhands with empty values until substitution, so an escaped
+  // url() in it is only visible in the block as written. Such a block is dropped whole.
+  if (themeCssValueFetches(rule.style.cssText)) rule.style.cssText = "";
   return true;
 }
 

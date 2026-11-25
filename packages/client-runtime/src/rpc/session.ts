@@ -202,9 +202,11 @@ export const make = Effect.fn("RpcSessionFactory.make")(function* (
     ...(options.providerCatalogDigests === true ? { providerCatalogDigests: true } : {}),
   };
   // Config state merges the snapshots it fetches back in, so no subscriber needs them broadcast.
+  // This build decodes theme CSS past the restricted length, which is said here for every opener.
   const onDemandSnapshots = (input: ServerConfigSubscriptionInput) => ({
     ...input,
     workspaceSnapshotsOnDemand: true,
+    ...(input.environmentThemes === true ? { unrestrictedThemeCss: true } : {}),
   });
 
   const connect = Effect.fnUntraced(function* (connection: PreparedConnection) {

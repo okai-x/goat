@@ -8,6 +8,7 @@ import {
   EnvironmentThemeId,
   environmentThemeFileHasColors,
   THEME_CSS_MAX_LENGTH,
+  THEME_CSS_RESTRICTED_MAX_LENGTH,
   ThemeCssValidationError,
 } from "@goat/contracts";
 import { UNPUBLISHABLE_THEME_IDS } from "@goat/shared/themePalettes";
@@ -51,6 +52,15 @@ export const MAX_THEME_FILES = 32;
  * JSON can spend six bytes on one CSS character; the rest is room for the colors.
  */
 export const MAX_THEME_FILE_BYTES = 6 * THEME_CSS_MAX_LENGTH + 16 * 1024;
+
+/** Themes a client can decode: one that predates unrestricted theme CSS fails on longer CSS. */
+export const themesForClient = (
+  themes: ReadonlyArray<EnvironmentTheme>,
+  decodesUnrestrictedCss: boolean,
+): ReadonlyArray<EnvironmentTheme> =>
+  decodesUnrestrictedCss
+    ? themes
+    : themes.filter((theme) => (theme.css?.length ?? 0) <= THEME_CSS_RESTRICTED_MAX_LENGTH);
 
 /** Size limits for the theme CSS policy in force. Publishing and the watcher must agree on them. */
 export const themeFileLimits = (unrestricted: boolean) =>

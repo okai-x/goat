@@ -12,6 +12,14 @@ export const THEME_WS_METHODS = {
   themeBackgroundUrl: "theme.backgroundUrl",
 } as const;
 
+/** What a client says about themes when it subscribes to server config. */
+export const THEME_CONFIG_SUBSCRIPTION_FIELDS = {
+  /** Opt-in protects older clients that reject unknown theme event types. */
+  environmentThemes: Schema.optional(Schema.Boolean),
+  /** Set by clients that decode theme CSS past the restricted length; older ones fail on it. */
+  unrestrictedThemeCss: Schema.optional(Schema.Boolean),
+};
+
 export const WsThemeValidateCssRpc = Rpc.make(THEME_WS_METHODS.themeValidateCss, {
   payload: Schema.Struct({ css: Schema.String.check(Schema.isMaxLength(THEME_CSS_MAX_LENGTH)) }),
   success: Schema.Struct({ css: Schema.String }),

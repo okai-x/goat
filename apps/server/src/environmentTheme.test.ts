@@ -1,4 +1,4 @@
-import { EnvironmentThemeFile } from "@goat/contracts";
+import { EnvironmentThemeFile, type ServerSettings } from "@goat/contracts";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
@@ -7,6 +7,7 @@ import * as Exit from "effect/Exit";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
+import * as PubSub from "effect/PubSub";
 import * as PlatformError from "effect/PlatformError";
 import * as Queue from "effect/Queue";
 import * as Schema from "effect/Schema";
@@ -186,6 +187,78 @@ it.layer(NodeServices.layer)("environment theme", (it) => {
       }),
     ),
   );
+  it.effect("pushes the changed theme list to a subscribed client when the setting changes", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "goat-theme-policy-" });
+      const themesDir = path.join(baseDir, "userdata", "themes");
+      yield* fs.makeDirectory(themesDir, { recursive: true });
+      yield* fs.writeFileString(
+        path.join(themesDir, "animated.json"),
+        JSON.stringify({ ...NIGHTFALL_THEME, css: T3_CODE_CSS }),
+      );
+      const settingsChanges = yield* PubSub.unbounded<ServerSettings>();
+      const watching = yield* Deferred.make<void>();
+      // The stock double reports no changes, so wrap it with a change stream the test can await.
+      const settingsLayer = Layer.effect(
+        Settings.ServerSettingsService,
+        Effect.gen(function* () {
+          const base = yield* Settings.ServerSettingsService;
+          return Settings.ServerSettingsService.of({
+            ...base,
+            updateSettings: (patch) =>
+              base
+                .updateSettings(patch)
+                .pipe(Effect.tap((next) => PubSub.publish(settingsChanges, next))),
+            streamChanges: Stream.unwrap(
+              PubSub.subscribe(settingsChanges).pipe(
+                Effect.tap(() => Deferred.succeed(watching, undefined)),
+                Effect.map(Stream.fromSubscription),
+              ),
+            ),
+          });
+        }),
+      ).pipe(Layer.provide(Settings.layerTest()));
+      yield* Effect.gen(function* () {
+        const service = yield* EnvironmentTheme.EnvironmentThemeService;
+        const settings = yield* Settings.ServerSettingsService;
+        const received = yield* Queue.unbounded<ReadonlyArray<string>>();
+        yield* service.streamChanges.pipe(
+          Stream.runForEach((themes) =>
+            Queue.offer(
+              received,
+              themes.map((theme) => theme.id),
+            ),
+          ),
+          Effect.forkScoped,
+        );
+        assert.deepEqual(yield* Queue.take(received), []);
+        yield* Deferred.await(watching);
+        yield* settings.updateSettings({ allowUnrestrictedThemeCss: true });
+        assert.deepEqual(yield* Queue.take(received), ["animated"]);
+        yield* settings.updateSettings({ allowUnrestrictedThemeCss: false });
+        assert.deepEqual(yield* Queue.take(received), []);
+      }).pipe(
+        Effect.provide(
+          EnvironmentTheme.layer.pipe(
+            Layer.provideMerge(
+              Layer.mergeAll(ServerConfig.layerTest(process.cwd(), baseDir), settingsLayer),
+            ),
+          ),
+        ),
+      );
+    }).pipe(Effect.scoped),
+  );
+  it("leaves themes with long CSS out for a client that predates unrestricted theme CSS", () => {
+    const theme = (id: string, css: string) => ({ ...NIGHTFALL_THEME, id, css });
+    const themes = [theme("short", "x".repeat(20_000)), theme("long", "x".repeat(20_001))];
+    assert.deepEqual(
+      EnvironmentTheme.themesForClient(themes, false).map((item) => item.id),
+      ["short"],
+    );
+    assert.deepEqual(EnvironmentTheme.themesForClient(themes, true), themes);
+  });
   it.effect("validates client CSS against the unrestricted policy when the setting is on", () =>
     withEnvironmentThemes(
       {},
