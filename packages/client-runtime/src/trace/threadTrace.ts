@@ -125,7 +125,8 @@ function itemLabel(item: Item, subagentTitle: string | null): string {
         return null;
     }
   })();
-  return firstLine(item.title) ?? specific ?? item.type.replaceAll("_", " ");
+  const generic = item.type.replaceAll("_", " ");
+  return firstLine(item.title) ?? specific ?? generic.charAt(0).toUpperCase() + generic.slice(1);
 }
 
 function sumTokens(turns: ReadonlyArray<ProviderTurn>): TraceTokens | null {

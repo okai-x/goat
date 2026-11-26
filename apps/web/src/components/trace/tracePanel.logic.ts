@@ -56,5 +56,7 @@ export function formatTraceDuration(milliseconds: number): string {
 
 export function spanDurationLabel(span: TraceSpan): string | null {
   if (span.startMs === null || span.endMs === null) return null;
+  // A message or marker is a point in time; "0ms" beside it says nothing.
+  if (span.endMs === span.startMs) return "";
   return formatTraceDuration(span.endMs - span.startMs);
 }

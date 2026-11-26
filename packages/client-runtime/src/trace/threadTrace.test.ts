@@ -123,7 +123,7 @@ describe("createThreadTraceDeriver", () => {
       "Run 1",
       "  Review the diff",
       "    ls -la",
-      "  approval request",
+      "  Approval request",
     ]);
     expect(trace.runs[0]?.spans[0]).toMatchObject({ detail: "model-a", hasChildren: true });
     expect(trace.runs[0]?.spans[1]?.childThreadId).toBe("child");
@@ -147,7 +147,7 @@ describe("createThreadTraceDeriver", () => {
       }),
     );
 
-    expect(outline(trace)).toEqual(["Run 1", "  Attempt 1", "  Attempt 2", "    reasoning"]);
+    expect(outline(trace)).toEqual(["Run 1", "  Attempt 1", "  Attempt 2", "    Reasoning"]);
   });
 
   it("keeps a settled run reference-equal while another run changes", () => {
