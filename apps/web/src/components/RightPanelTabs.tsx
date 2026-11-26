@@ -67,6 +67,7 @@ import { previewBridge } from "./preview/previewBridge";
 import { dispatchPreviewAction } from "./preview/previewActionBus";
 import { preventThumbButtonFocus, takeThumbButtonNavigation } from "./preview/thumbButtons";
 import { PullRequestGlyph } from "~/components/pullRequest/pullRequestIcons";
+import { traceSurfaceAction } from "~/components/trace/traceSurfaceAction";
 import {
   type PullRequestTabStatusSeed,
   panelTabKeyAction,
@@ -115,6 +116,7 @@ export interface RightPanelTabsProps {
   onAddPullRequest: () => void;
   onAddPullRequests: () => void;
   onAddDevice: () => void;
+  onAddTrace?: (() => void) | undefined;
   browserAvailable: boolean;
   terminalAvailable: boolean;
   diffAvailable: boolean;
@@ -232,6 +234,7 @@ function RightPanelEmptyState(props: {
   onAddPullRequest: () => void;
   onAddPullRequests: () => void;
   onAddDevice: () => void;
+  onAddTrace?: (() => void) | undefined;
   browserAvailable: boolean;
   terminalAvailable: boolean;
   diffAvailable: boolean;
@@ -300,6 +303,7 @@ function RightPanelEmptyState(props: {
       disabledReason: SURFACE_UNAVAILABLE_HINTS.device,
       onClick: props.onAddDevice,
     },
+    traceSurfaceAction(props.onAddTrace),
   ] as const;
 
   type SurfaceAction = (typeof actions)[number];
@@ -484,6 +488,8 @@ function surfaceTitle(
       return "Pull requests";
     case "side-chat":
       return "Side chat";
+    case "trace":
+      return "Trace";
     case "device":
       return surface.title ?? surface.target?.name ?? "Device";
     case "preview": {
@@ -585,6 +591,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
       disabledReason: SURFACE_DISABLED_REASONS.device,
       onClick: props.onAddDevice,
     },
+    traceSurfaceAction(props.onAddTrace),
   ] as const;
 
   const handleAddSurfaceMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -1024,6 +1031,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
             onAddPullRequest={props.onAddPullRequest}
             onAddPullRequests={props.onAddPullRequests}
             onAddDevice={props.onAddDevice}
+            onAddTrace={props.onAddTrace}
             browserAvailable={props.browserAvailable}
             terminalAvailable={props.terminalAvailable}
             diffAvailable={props.diffAvailable}

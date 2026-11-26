@@ -26,6 +26,7 @@ import {
   FileDiffIcon as FileDiff,
   FilesIcon as Files,
   GlobeIcon as Globe2,
+  ActivityIcon,
   MessagesSquareIcon,
   TerminalIcon as TerminalSquare,
   XIcon,
@@ -172,6 +173,8 @@ function SurfaceIcon({
       return <PullRequestGlyph.link className="size-3 shrink-0" />;
     case "side-chat":
       return <MessagesSquareIcon className="size-3 shrink-0" />;
+    case "trace":
+      return <ActivityIcon className="size-3 shrink-0" />;
     case "device":
       return surface.target?.platform === "ios" ? (
         <AppleIcon className="size-3 shrink-0" />

@@ -1,4 +1,5 @@
 import { AddProjectSourceSetupBadge } from "./AddProjectSourceSetupBadge";
+import { tracePaletteItems } from "./trace/tracePaletteItems";
 import { webThreadFollowPaletteItems } from "./goatBot/goatBotThreadFollowMenu";
 import { topLevelThreadCandidates } from "./sidebar/topLevelThreadCandidates";
 import { useGT, useMessages } from "gt-react";
@@ -1377,6 +1378,7 @@ function OpenCommandPaletteDialog(props: {
   });
   if (sshFetchBackItem !== null) actionItems.push(sshFetchBackItem);
   actionItems.push(...forkPaletteItems);
+  actionItems.push(...tracePaletteItems(activeThread ?? null));
 
   if (
     activeThread !== null &&
