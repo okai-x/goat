@@ -112,8 +112,8 @@ export function MobileBotWork(props: {
   readonly turnsWaiting?: ReadonlyArray<GoatBotWaitingTurn>;
   /** What the chat calls this bot. */
   readonly botName?: string;
-  /** The bot's profile picture, shown at the top of the sheet. */
-  readonly botAvatar?: string | null | undefined;
+  /** The bot's picture, shown at the top of the sheet. */
+  readonly botAvatar?: Parameters<typeof GoatBotFaceAvatar>[0]["emoji"];
   /** A member's color for its face. */
   readonly botAccent?: GoatBotAccent | null | undefined;
   /** The main bot, named on a member's inherited model. */

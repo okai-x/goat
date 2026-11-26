@@ -1,10 +1,16 @@
 import { useAtomValue } from "@effect/atom-react";
-import { goatBotMemberPicture } from "@goat/client-runtime/goatBot";
+import {
+  goatBotAccent,
+  goatBotAvatarEmoji,
+  goatBotAvatarPortrait,
+  goatBotMemberPicture,
+} from "@goat/client-runtime/goatBot";
 import { AuthSettingsWriteScope, type BotProfile } from "@goat/contracts";
 import type { useNavigate } from "@tanstack/react-router";
 import { Atom } from "effect/reactivity";
 
 import { BotIcon } from "~/components/solar";
+import { GoatBotPortrait } from "./GoatBotPortrait";
 import { dispatchMenuAction } from "~/shortcuts/dispatcher";
 import { channelEnvironment } from "~/state/channels";
 import { useServerConfigs } from "~/state/entities";
@@ -98,6 +104,8 @@ export function goatBotPaletteItems(
   const search: CommandPaletteActionItem[] = [];
   for (const bot of bots) {
     if (bot.role !== "member") continue;
+    const picture = goatBotMemberPicture(bot);
+    const portrait = goatBotAvatarPortrait(picture);
     search.push({
       kind: "action",
       value: `action:goat-bot:${bot.botId}`,
@@ -106,9 +114,18 @@ export function goatBotPaletteItems(
       icon: (
         <span
           aria-hidden
-          className={`${ITEM_ICON_CLASS} flex items-center justify-center rounded-full border border-border text-3xs leading-none`}
+          className={`${ITEM_ICON_CLASS} flex items-center justify-center overflow-hidden rounded-full border border-border text-3xs leading-none`}
+          style={
+            portrait === null
+              ? undefined
+              : { backgroundColor: goatBotAccent(bot)?.background ?? portrait.background }
+          }
         >
-          {goatBotMemberPicture(bot)}
+          {portrait === null ? (
+            goatBotAvatarEmoji(picture)
+          ) : (
+            <GoatBotPortrait art={portrait} className="size-full" />
+          )}
         </span>
       ),
       run: () => navigate({ to: "/bot", search: { bot: bot.botId } }),

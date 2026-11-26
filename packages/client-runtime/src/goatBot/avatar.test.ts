@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { goatBotAvatarEmoji, goatBotAvatarSignal } from "./avatar.ts";
+import {
+  goatBotAvatarEmoji,
+  goatBotAvatarPortrait,
+  goatBotAvatarSignal,
+  goatBotMemberPicture,
+} from "./avatar.ts";
+import { goatBotPortraitArtForSeed, goatBotPortraitSeeds } from "./portrait.ts";
 import type { GoatBotFaceState } from "./face.ts";
 
 const STATES: ReadonlyArray<GoatBotFaceState> = [
@@ -19,6 +25,49 @@ describe("goatBotAvatarEmoji", () => {
     expect(goatBotAvatarEmoji("   ")).toBeNull();
     expect(goatBotAvatarEmoji(null)).toBeNull();
     expect(goatBotAvatarEmoji(undefined)).toBeNull();
+  });
+});
+
+describe("goatBotMemberPicture", () => {
+  it("keeps a member's chosen emoji", () => {
+    expect(goatBotMemberPicture({ avatar: "🐙", name: "Scout" })).toBe("🐙");
+  });
+
+  it("draws one portrait per name, whatever its case or spacing", () => {
+    const portrait = goatBotAvatarPortrait(goatBotMemberPicture({ avatar: null, name: "Scout" }));
+    expect(portrait).not.toBeNull();
+    expect(goatBotMemberPicture({ avatar: " ", name: "  scout " })).toBe(portrait);
+    expect(goatBotAvatarEmoji(portrait)).toBeNull();
+  });
+
+  it("draws a chosen portrait whatever the name, and the same one on every client", () => {
+    const chosen = goatBotMemberPicture({ avatar: null, name: "Scout", portrait: 7 });
+    expect(goatBotMemberPicture({ avatar: null, name: "Builder", portrait: 7 })).toBe(chosen);
+    expect(chosen).not.toBe(goatBotMemberPicture({ avatar: null, name: "Scout" }));
+    expect(goatBotMemberPicture({ avatar: "🐙", name: "Scout", portrait: 7 })).toBe("🐙");
+  });
+
+  it("offers distinct portraits to pick from", () => {
+    const seeds = goatBotPortraitSeeds(12);
+    expect(seeds).toHaveLength(12);
+    const looks = new Set(
+      seeds.map((seed) => {
+        const art = goatBotPortraitArtForSeed(seed);
+        return [art.back, art.body.dark, art.ink, art.lines, art.details, art.background].join();
+      }),
+    );
+    expect(looks.size).toBe(12);
+  });
+
+  it("tells members apart by name", () => {
+    const names = Array.from({ length: 24 }, (_, index) => `Member ${index}`);
+    const drawings = new Set(
+      names.map((name) => {
+        const art = goatBotAvatarPortrait(goatBotMemberPicture({ name }));
+        return art === null ? "" : [art.back, art.ink, art.lines, art.background].join("|");
+      }),
+    );
+    expect(drawings.size).toBeGreaterThanOrEqual(20);
   });
 });
 

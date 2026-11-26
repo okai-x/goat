@@ -119,6 +119,7 @@ export const exportBotPackage = Effect.fn("ChannelBotPackages.export")(function*
         name: bot.name,
         face: bot.avatar,
         color: bot.color ?? null,
+        ...(bot.portrait === undefined ? {} : { portrait: bot.portrait }),
         purpose: bot.purpose,
         instructions: bot.instructions ?? "",
         automations,

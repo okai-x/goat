@@ -1,16 +1,14 @@
 import type { BotProfile, EnvironmentId } from "@goat/contracts";
-import { goatBotAvatarEmoji } from "@goat/client-runtime/goatBot";
+import { goatBotMemberPicture, type GoatBotPicture } from "@goat/client-runtime/goatBot";
 
 /**
- * A member's picture: its emoji, else its name's first letter, so members are told apart from
- * each other and from the main bot's face, as on web.
+ * A member's picture: its emoji, else a portrait drawn from its name, so members are told apart
+ * from each other and from the main bot's face, as on web.
  */
 export function mobileGoatBotMemberPicture(
-  bot: Pick<BotProfile, "avatar" | "name">,
-): string | null {
-  return (
-    goatBotAvatarEmoji(bot.avatar) ?? Array.from(bot.name.trim())[0]?.toLocaleUpperCase() ?? null
-  );
+  bot: Pick<BotProfile, "avatar" | "name" | "portrait">,
+): GoatBotPicture {
+  return goatBotMemberPicture(bot);
 }
 
 // Conversation threads of active member bots, per environment. The send queue reads it at dispatch

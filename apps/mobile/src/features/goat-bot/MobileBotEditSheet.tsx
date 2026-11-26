@@ -12,8 +12,9 @@ import {
 } from "./useMobileGoatBotMemberModel";
 
 /**
- * Edit bot: name, look, purpose, a member's colour and model. `draftName` starts the name field
- * from words typed elsewhere (the chat's name row) while changes still count against the bot.
+ * Edit bot: name, look, purpose, a member's colour, portrait and model. `draftName` starts the
+ * name field from words typed elsewhere (the chat's name row) while changes still count against
+ * the bot.
  */
 export function MobileBotEditSheet(props: {
   readonly bot: BotProfile;
@@ -42,6 +43,11 @@ export function MobileBotEditSheet(props: {
       unavailableReason={manage.connected ? undefined : manage.offlineReason}
       extraChanged={modelChanged}
       colorEditable={colorEditable}
+      portraitEditable={
+        colorEditable &&
+        presentationById.get(props.environmentId)?.serverConfig?.environment.capabilities
+          .goatBotProfilePortrait === true
+      }
       tools={
         presentationById.get(props.environmentId)?.serverConfig?.environment.capabilities
           .goatBotTools === true

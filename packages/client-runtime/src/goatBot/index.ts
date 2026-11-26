@@ -21,6 +21,7 @@ export * from "./face.ts";
 export * from "./avatar.ts";
 export * from "./faceMotion.ts";
 export * from "./faceHead.ts";
+export * from "./portrait.ts";
 export * from "./avatarDot.ts";
 export * from "./botNotes.ts";
 export * from "./diagnostics.ts";

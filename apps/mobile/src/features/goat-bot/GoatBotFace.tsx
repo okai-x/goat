@@ -6,7 +6,15 @@ import {
   GOAT_BOT_HEAD_SLEEP_MARK_STROKE_WIDTH,
   GOAT_BOT_HEAD_STROKE_WIDTH,
   GOAT_BOT_HEAD_VIEWBOX,
+  GOAT_BOT_PORTRAIT_BLUSH,
+  GOAT_BOT_PORTRAIT_DETAIL_WIDTH,
+  GOAT_BOT_PORTRAIT_HIGHLIGHT_WIDTH,
+  GOAT_BOT_PORTRAIT_INK,
+  GOAT_BOT_PORTRAIT_PAPER,
+  GOAT_BOT_PORTRAIT_STROKE_WIDTH,
+  GOAT_BOT_PORTRAIT_VIEWBOX,
   goatBotAvatarEmoji,
+  goatBotAvatarPortrait,
   goatBotAvatarSignal,
   goatBotFaceLabel,
   goatBotHeadArt,
@@ -15,6 +23,8 @@ import {
   type FaceMotion,
   type GoatBotFaceInput,
   type GoatBotFaceState,
+  type GoatBotPicture,
+  type GoatBotPortraitArt,
 } from "@goat/client-runtime/goatBot";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -185,24 +195,101 @@ const RING: Record<NonNullable<GoatBotAvatarSignal["ring"]>, string> = {
 };
 
 /**
- * The bot's round avatar: its chosen emoji, else its face. The ring and dot carry the state
- * either way; callers put the face label in their own row label.
+ * A member's drawn portrait clipped to its circle, as on web. `inset` leaves a hairline for a ring
+ * parted from the fill; `dimmed` quiets a sleeping member.
+ */
+export function GoatBotPortrait(props: {
+  readonly art: GoatBotPortraitArt;
+  readonly inset?: number;
+  readonly dimmed?: boolean;
+}) {
+  const inset = props.inset ?? 0;
+  const art = props.art;
+  return (
+    <View
+      className="absolute overflow-hidden rounded-full"
+      style={{
+        top: inset,
+        right: inset,
+        bottom: inset,
+        left: inset,
+        ...(props.dimmed === true ? { opacity: 0.6 } : {}),
+      }}
+    >
+      <Svg width="100%" height="100%" viewBox={GOAT_BOT_PORTRAIT_VIEWBOX}>
+        {art.back === "" ? null : <Path d={art.back} fill={GOAT_BOT_PORTRAIT_INK} />}
+        <Path
+          d={art.body.d}
+          fill={art.body.dark ? GOAT_BOT_PORTRAIT_INK : GOAT_BOT_PORTRAIT_PAPER}
+          stroke={GOAT_BOT_PORTRAIT_INK}
+          strokeWidth={GOAT_BOT_PORTRAIT_STROKE_WIDTH}
+          strokeLinejoin="round"
+        />
+        {art.skin.map((d) => (
+          <Path
+            key={d}
+            d={d}
+            fill={GOAT_BOT_PORTRAIT_PAPER}
+            stroke={GOAT_BOT_PORTRAIT_INK}
+            strokeWidth={GOAT_BOT_PORTRAIT_STROKE_WIDTH}
+            strokeLinejoin="round"
+          />
+        ))}
+        {art.blush === "" ? null : <Path d={art.blush} fill={GOAT_BOT_PORTRAIT_BLUSH} />}
+        <Path d={art.ink} fill={GOAT_BOT_PORTRAIT_INK} />
+        {(
+          [
+            { d: art.lines, color: GOAT_BOT_PORTRAIT_INK, width: GOAT_BOT_PORTRAIT_STROKE_WIDTH },
+            { d: art.details, color: GOAT_BOT_PORTRAIT_INK, width: GOAT_BOT_PORTRAIT_DETAIL_WIDTH },
+            {
+              d: art.highlights,
+              color: GOAT_BOT_PORTRAIT_PAPER,
+              width: GOAT_BOT_PORTRAIT_HIGHLIGHT_WIDTH,
+            },
+          ] as const
+        ).map(({ d, color, width }) =>
+          d === "" ? null : (
+            <Path
+              key={`${color}-${width}`}
+              d={d}
+              fill="none"
+              stroke={color}
+              strokeWidth={width}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          ),
+        )}
+      </Svg>
+    </View>
+  );
+}
+
+/**
+ * The bot's round avatar: its chosen emoji or a member's portrait, else its face. The ring and dot
+ * carry the state either way; callers put the face label in their own row label.
  */
 export function GoatBotFaceAvatar(props: {
   readonly state: GoatBotFaceState;
   readonly size: number;
   readonly motion?: FaceMotion | null;
-  /** The bot's profile avatar; an emoji replaces the drawn face. */
-  readonly emoji?: string | null | undefined;
+  /** The bot's picture; an emoji or a member's portrait replaces the drawn face. */
+  readonly emoji?: GoatBotPicture | null | undefined;
   /** A member's color fills its circle, with text that reads on it. */
   readonly accent?: GoatBotAccent | null | undefined;
   /** The surface behind the avatar; the screen when absent. */
   readonly surface?: GoatBotAvatarSurface;
 }) {
   const picture = goatBotAvatarEmoji(props.emoji);
-  const signal = goatBotAvatarSignal(props.state, picture !== null);
+  const portrait = goatBotAvatarPortrait(props.emoji);
+  const signal = goatBotAvatarSignal(props.state, picture !== null || portrait !== null);
   const surface = useResolveClassNames("bg-grouped-card").backgroundColor;
-  const awake = picture !== null ? (props.accent ?? null) : null;
+  const awake =
+    portrait !== null
+      ? (props.accent ?? { background: portrait.background, foreground: "#000000" })
+      : picture !== null
+        ? (props.accent ?? null)
+        : null;
   // Asleep, a coloured circle moves toward the surface instead of dimming its initial, whose colour
   // is chosen again for the mix; an uncoloured one dims as before.
   const accent =
@@ -228,7 +315,9 @@ export function GoatBotFaceAvatar(props: {
           style={{ top: 1, right: 1, bottom: 1, left: 1, backgroundColor: accent.background }}
         />
       ) : null}
-      {picture !== null ? (
+      {portrait !== null ? (
+        <GoatBotPortrait art={portrait} inset={inset ? 1 : 0} dimmed={signal.dimmed} />
+      ) : picture !== null ? (
         <Text
           allowFontScaling={false}
           style={{
@@ -259,21 +348,22 @@ const PROGRESS_FACE_RANK = FACE_MOTION_RANK.header + 1;
 
 /**
  * The bot beside what it is doing: its drawn face, moving only while the line is in view and motion
- * is allowed, or its emoji or initial on its avatar circle, which never moves.
+ * is allowed, or its emoji or portrait on its avatar circle, which never moves.
  */
 export function GoatBotProgressFace(props: {
   readonly state: GoatBotFaceState;
-  readonly emoji?: string | null | undefined;
+  readonly emoji?: GoatBotPicture | null | undefined;
   readonly accent?: GoatBotAccent | null | undefined;
   readonly inView: boolean;
 }) {
   const emoji = goatBotAvatarEmoji(props.emoji);
+  const portrait = goatBotAvatarPortrait(props.emoji);
   const accent = props.accent ?? null;
   const motion = useMobileGoatBotFaceMotion(
     props.state,
     PROGRESS_FACE_RANK,
     null,
-    props.inView && emoji === null,
+    props.inView && emoji === null && portrait === null,
   );
   return (
     <View
@@ -281,7 +371,14 @@ export function GoatBotProgressFace(props: {
       importantForAccessibility="no-hide-descendants"
       className="h-6 w-6 items-center justify-center"
     >
-      {emoji !== null ? (
+      {portrait !== null ? (
+        <View
+          className="h-5 w-5 rounded-full"
+          style={{ backgroundColor: accent?.background ?? portrait.background }}
+        >
+          <GoatBotPortrait art={portrait} />
+        </View>
+      ) : emoji !== null ? (
         <View
           className="h-5 w-5 items-center justify-center rounded-full bg-grouped-card"
           style={accent ? { backgroundColor: accent.background } : undefined}
@@ -309,7 +406,7 @@ function GoatBotHeaderTitle(props: {
   readonly state: GoatBotFaceState;
   readonly motion: FaceMotion | null;
   readonly title: string;
-  readonly emoji: string | null;
+  readonly emoji: GoatBotPicture | null;
   readonly accent: GoatBotAccent | null;
   readonly onPress?: (() => void) | undefined;
 }) {
@@ -378,8 +475,8 @@ export function GoatBotChipFace(props: {
   readonly activity: GoatBotFaceInput["activity"];
   /** A member bot's conversation; the main bot's when absent. */
   readonly conversation?: Parameters<typeof useMobileGoatBotFace>[1];
-  /** The bot's profile avatar, or a member's initial. */
-  readonly emoji?: string | null | undefined;
+  /** The bot's profile avatar, or a member's portrait. */
+  readonly emoji?: GoatBotPicture | null | undefined;
   readonly accent?: GoatBotAccent | null | undefined;
 }) {
   const face = useMobileGoatBotFace(props.activity, props.conversation);
@@ -400,16 +497,16 @@ export function GoatBotHeaderFace(props: {
   readonly title: string;
   /** A member bot's conversation; the main bot's when absent. */
   readonly conversation?: Parameters<typeof useMobileGoatBotFace>[1];
-  /** The bot's profile avatar. */
-  readonly emoji?: string | null | undefined;
+  /** The bot's profile avatar, or a member's portrait. */
+  readonly emoji?: GoatBotPicture | null | undefined;
   readonly accent?: GoatBotAccent | null | undefined;
   /** Opens the bot's home; absent on a task's own screen, whose header is that task. */
   readonly onPress?: (() => void) | undefined;
 }) {
   const face = useMobileGoatBotFace(props.activity, props.conversation);
-  const emoji = goatBotAvatarEmoji(props.emoji);
+  const emoji = goatBotAvatarEmoji(props.emoji) ?? goatBotAvatarPortrait(props.emoji);
   // The header shows whenever its screen is focused, which the motion hook already checks; an
-  // emoji has no eyes, so it never takes the one moving face.
+  // emoji or portrait has no eyes, so it never takes the one moving face.
   const motion = useMobileGoatBotFaceMotion(
     face.state,
     FACE_MOTION_RANK.header,
@@ -437,7 +534,7 @@ export function GoatBotHeaderFace(props: {
     <NativeStackScreenOptions
       // The title is also the navigation bar's accessible name; the stack's default says GOAT Bot.
       options={{ title, headerTitle: renderTitle }}
-      optionsVersion={`${title}:${state}:${emoji ?? ""}:${accent?.background ?? ""}:${motion === null ? "still" : "moving"}:${onPress ? "chip" : "title"}`}
+      optionsVersion={`${title}:${state}:${typeof emoji === "string" ? emoji : (emoji?.id ?? "")}:${accent?.background ?? ""}:${motion === null ? "still" : "moving"}:${onPress ? "chip" : "title"}`}
     />
   );
 }

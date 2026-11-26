@@ -431,6 +431,7 @@ const make = Effect.gen(function* () {
           createdAt: at,
           updatedAt: at,
           ...(input.color === undefined ? {} : { color: input.color }),
+          ...(input.portrait === undefined ? {} : { portrait: input.portrait }),
         };
         yield* sql`INSERT INTO channel_runtime_state (key, value_json, updated_at) VALUES
           (${botProfileKey(owner.ownerId, botId)}, ${ChannelBotProfiles.encodeProfile(created)}, ${at})`;
@@ -514,7 +515,7 @@ const make = Effect.gen(function* () {
   )(function* (input, owner, creation) {
     const reviewed = yield* reviewBotPackage(input);
     if (reviewed.digest !== input.digest) return yield* fail("invalid_input");
-    const { name, face, color, purpose } = reviewed.botPackage;
+    const { name, face, color, portrait, purpose } = reviewed.botPackage;
     const bot = yield* serial(
       createMember(
         {
@@ -522,6 +523,7 @@ const make = Effect.gen(function* () {
           avatar: face,
           purpose,
           ...(color === null ? {} : { color }),
+          ...(portrait === undefined ? {} : { portrait }),
           defaultModelSelection: null,
           clientRequestId: input.clientRequestId,
         },

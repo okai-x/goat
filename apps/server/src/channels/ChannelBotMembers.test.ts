@@ -483,7 +483,7 @@ describe("two bots", () => {
 
 describe("hiding, deleting and restoring member bots", () => {
   it.effect(
-    "a member's color survives a retried create, edits and hiding; null clears it; main takes none",
+    "a member's color and portrait survive a retried create, edits and hiding; main takes neither",
     () => {
       const harness = makeHarness();
       return Effect.gen(function* () {
@@ -498,12 +498,13 @@ describe("hiding, deleting and restoring member bots", () => {
               purpose: "",
               defaultModelSelection: null,
               color: "#2F80ED",
+              portrait: 42,
             },
             owner,
           );
         const bot = yield* create();
         assert.strictEqual(bot.color, "#2F80ED");
-        assert.strictEqual((yield* create()).color, "#2F80ED");
+        assert.strictEqual((yield* create()).portrait, 42);
         const listed = () =>
           members
             .list({}, owner)
@@ -511,7 +512,7 @@ describe("hiding, deleting and restoring member bots", () => {
         yield* members.update({ botId: bot.botId, name: "Builder" }, owner);
         yield* members.setHidden({ botId: bot.botId, hidden: true }, owner);
         yield* members.setHidden({ botId: bot.botId, hidden: false }, owner);
-        assert.strictEqual((yield* listed())?.color, "#2F80ED");
+        assert.deepInclude(yield* listed(), { color: "#2F80ED", portrait: 42 });
         assert.strictEqual((yield* listed())?.name, "Builder");
         assert.strictEqual(decodeOlderMember(yield* storedProfile(bot.botId))._tag, "Success");
         const recolored = yield* members.update({ botId: bot.botId, color: "#C2410C" }, owner);
@@ -519,10 +520,14 @@ describe("hiding, deleting and restoring member bots", () => {
         const cleared = yield* members.update({ botId: bot.botId, color: null }, owner);
         assert.isUndefined(cleared.color);
         assert.isUndefined((yield* listed())?.color);
-        assert.strictEqual(
-          yield* refusal(members.update({ botId: MAIN, color: "#2F80ED" }, owner)),
-          "invalid_input",
-        );
+        const repainted = yield* members.update({ botId: bot.botId, portrait: 9 }, owner);
+        assert.strictEqual(repainted.portrait, 9);
+        yield* members.update({ botId: bot.botId, portrait: null }, owner);
+        assert.isUndefined((yield* listed())?.portrait);
+        for (const look of [{ color: "#2F80ED" }, { portrait: 3 }]) {
+          const refused = yield* refusal(members.update({ botId: MAIN, ...look }, owner));
+          assert.strictEqual(refused, "invalid_input");
+        }
         const main = yield* members.update({ botId: MAIN, color: null }, owner);
         assert.isUndefined(main.color);
       }).pipe(Effect.provide(harness.layer));

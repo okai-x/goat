@@ -21,6 +21,7 @@ import {
 import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import { GoatBotColorField } from "./GoatBotColorField";
+import { GoatBotPortraitField } from "./GoatBotPortraitField";
 
 export type GoatBotProfileChanges = Partial<BotProfileValues>;
 
@@ -44,6 +45,8 @@ export function GoatBotProfileDialog(props: {
   readonly extraChanged?: boolean;
   /** The target server stores a member's color; absent or false hides the swatches. */
   readonly colorEditable?: boolean;
+  /** The target server stores a member's portrait; absent or false hides the picker. */
+  readonly portraitEditable?: boolean;
   readonly instructionsEditable?: boolean;
   readonly finalFocus?: ComponentProps<typeof DialogPopup>["finalFocus"];
 }) {
@@ -52,6 +55,7 @@ export function GoatBotProfileDialog(props: {
   const [purpose, setPurpose] = useState(props.initial.purpose);
   const [instructions, setInstructions] = useState(props.initial.instructions ?? "");
   const [color, setColor] = useState<string | null>(props.initial.color ?? null);
+  const [portrait, setPortrait] = useState<number | null>(props.initial.portrait ?? null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const blankName = name.trim() === "";
@@ -82,6 +86,7 @@ export function GoatBotProfileDialog(props: {
       ...(props.instructionsEditable === true ? { instructions } : {}),
       // Without the swatches the form never carries a color, so an old server gets no key.
       ...(props.colorEditable === true ? { color } : {}),
+      ...(props.portraitEditable === true ? { portrait } : {}),
     });
     if (Object.keys(changes).length === 0 && props.extraChanged !== true) return props.onClose();
     setBusy(true);
@@ -141,6 +146,16 @@ export function GoatBotProfileDialog(props: {
             </label>
             {props.colorEditable === true ? (
               <GoatBotColorField value={color} onChange={setColor} disabled={busy} />
+            ) : null}
+            {props.portraitEditable === true ? (
+              <GoatBotPortraitField
+                value={portrait}
+                name={name}
+                color={props.colorEditable === true ? color : null}
+                emojiSet={avatar.trim() !== ""}
+                onChange={setPortrait}
+                disabled={busy}
+              />
             ) : null}
             <label className="grid gap-1.5 text-sm">
               Purpose

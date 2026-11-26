@@ -1,5 +1,6 @@
 import {
   goatBotAvatarEmoji,
+  goatBotAvatarPortrait,
   goatBotChoiceLetter,
   goatBotReceiptLabel,
   goatBotRejectionText,
@@ -7,13 +8,14 @@ import {
   type GoatBotAccent,
   type GoatBotFaceState,
   type GoatBotGroupPosition,
+  type GoatBotPicture,
   type GoatBotRow,
 } from "@goat/client-runtime/goatBot";
 import { useEffect, type ReactNode } from "react";
 import { AccessibilityInfo, Platform, Pressable, Text, View } from "react-native";
 
 import { GoatWordmark } from "../../components/GoatWordmark";
-import { GoatBotProgressFace } from "./GoatBotFace";
+import { GoatBotPortrait, GoatBotProgressFace } from "./GoatBotFace";
 import { GoatBotShimmerText } from "./GoatBotShimmerText";
 import { useScaledTextRole } from "../settings/appearance/useScaledTextRole";
 
@@ -30,15 +32,21 @@ export const goatBotRowGap = (position: GoatBotGroupPosition) =>
   position === "single" || position === "first" ? 16 : 6;
 
 /**
- * The bot's small avatar: its chosen emoji or initial, on its color when it has one, else the goat
- * mark on the neutral avatar circle.
+ * The bot's small avatar: its chosen emoji or a member's portrait, on its color when it has one,
+ * else the goat mark on the neutral avatar circle.
  */
 function GoatBotAvatar(props: {
-  readonly emoji?: string | null | undefined;
+  readonly emoji?: GoatBotPicture | null | undefined;
   readonly accent?: GoatBotAccent | null | undefined;
 }) {
   const emoji = goatBotAvatarEmoji(props.emoji);
-  const accent = emoji !== null ? (props.accent ?? null) : null;
+  const portrait = goatBotAvatarPortrait(props.emoji);
+  const accent =
+    portrait !== null
+      ? (props.accent ?? { background: portrait.background, foreground: "#000000" })
+      : emoji !== null
+        ? (props.accent ?? null)
+        : null;
   return (
     <View
       accessibilityElementsHidden
@@ -46,7 +54,9 @@ function GoatBotAvatar(props: {
       className="h-5 w-5 items-center justify-center rounded-full border border-goat-avatar-border bg-goat-avatar"
       style={accent ? { backgroundColor: accent.background } : undefined}
     >
-      {emoji !== null ? (
+      {portrait !== null ? (
+        <GoatBotPortrait art={portrait} />
+      ) : emoji !== null ? (
         <Text
           allowFontScaling={false}
           className="text-goat-avatar-foreground"
@@ -65,7 +75,7 @@ function GoatBotAvatar(props: {
 export function GoatBotUpdateLabel(props: {
   readonly at: string;
   readonly name: string;
-  readonly emoji?: string | null | undefined;
+  readonly emoji?: GoatBotPicture | null | undefined;
   readonly accent?: GoatBotAccent | null | undefined;
 }) {
   const caption = useScaledTextRole("label");
@@ -223,7 +233,7 @@ export function GoatBotActivityLine(props: {
   readonly activity: GoatBotActivity;
   readonly botName: string;
   /** The bot's profile avatar; an emoji replaces the drawn face. */
-  readonly emoji?: string | null | undefined;
+  readonly emoji?: GoatBotPicture | null | undefined;
   readonly accent?: GoatBotAccent | null | undefined;
   /** Whether enough of the line shows on screen for its motion to run. */
   readonly inView: boolean;

@@ -27,6 +27,7 @@ const sample = {
   name: "Build Scout",
   face: "🔎",
   color: "#286470",
+  portrait: 42,
   purpose: "Review builds.",
   instructions: "Summarize failures.",
   automations: [
@@ -140,6 +141,7 @@ it.effect("binds confirmation to the reviewed package and resumes paused automat
             .importPackage({ ...input, text: text + " ", digest: different.digest }, owner, context)
             .pipe(Effect.flip);
           assert.strictEqual(reused.reason, "invalid_input");
+          assert.strictEqual(result.bot.portrait, sample.portrait);
           assert.deepStrictEqual(result.bot.tools, { mcpServers: [], skills: [] });
           assert.deepStrictEqual(result.bot.importedToolNames, sample.tools);
           const { tasks } = yield* service.list();
@@ -198,6 +200,7 @@ it.effect("binds confirmation to the reviewed package and resumes paused automat
           const exported = yield* members.exportPackage({ botId: result.bot.botId }, owner);
           assert.strictEqual(exported.status, "ready");
           if (exported.status === "ready") {
+            assert.strictEqual(JSON.parse(exported.contents).portrait, sample.portrait);
             assert.notInclude(exported.contents, "fixture-local-signing-secret");
             assert.notInclude(exported.contents, "/api/hooks");
             assert.deepStrictEqual(

@@ -3,6 +3,7 @@ import { botProfileChanges, type BotProfileValues } from "@goat/client-runtime/s
 import { useRef, useState, type ReactNode } from "react";
 import { SymbolView } from "../../components/ui/AppSymbol";
 import { MobileBotColorField } from "./MobileBotColorField";
+import { MobileBotPortraitField } from "./MobileBotPortraitField";
 import { MobileSheetSafeArea } from "./MobileSheetSafeArea";
 import {
   Modal,
@@ -29,6 +30,8 @@ export function MobileBotProfileSheet(props: {
   readonly extraChanged?: boolean;
   /** The server stores a member's colour; absent or false shows no swatches and sends none. */
   readonly colorEditable?: boolean | undefined;
+  /** The server stores a member's portrait; absent or false shows no picker and sends none. */
+  readonly portraitEditable?: boolean | undefined;
   readonly instructionsEditable?: boolean;
   readonly tools?: BotProfile["tools"] | null;
   /** Starts the name field from words typed elsewhere; changes still count against `initial`. */
@@ -41,6 +44,7 @@ export function MobileBotProfileSheet(props: {
   const [purpose, setPurpose] = useState(props.initial.purpose);
   const [instructions, setInstructions] = useState(props.initial.instructions ?? "");
   const [color, setColor] = useState<string | null>(props.initial.color ?? null);
+  const [portrait, setPortrait] = useState<number | null>(props.initial.portrait ?? null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // A new bot needs only a name and a look; what it is for and its model can come later.
@@ -70,6 +74,7 @@ export function MobileBotProfileSheet(props: {
       ...(!create && props.instructionsEditable === true ? { instructions } : {}),
       // Without the swatches the form never carries a colour, so an older server gets no key.
       ...(props.colorEditable === true ? { color } : {}),
+      ...(props.portraitEditable === true ? { portrait } : {}),
     });
     if (Object.keys(changes).length === 0 && props.extraChanged !== true) return props.onClose();
     setBusy(true);
@@ -171,6 +176,16 @@ export function MobileBotProfileSheet(props: {
             />
             {props.colorEditable === true ? (
               <MobileBotColorField value={color} onChange={setColor} disabled={busy} />
+            ) : null}
+            {props.portraitEditable === true ? (
+              <MobileBotPortraitField
+                value={portrait}
+                name={name}
+                color={props.colorEditable === true ? color : null}
+                emojiSet={avatar.trim() !== ""}
+                onChange={setPortrait}
+                disabled={busy}
+              />
             ) : null}
             {create ? (
               <Pressable
