@@ -1,6 +1,10 @@
 import type { GoatBotFaceState } from "./face.ts";
 
-import { goatBotPortraitArt, type GoatBotPortraitArt } from "./portrait.ts";
+import {
+  goatBotPortraitArt,
+  goatBotPortraitArtForSeed,
+  type GoatBotPortraitArt,
+} from "./portrait.ts";
 
 /** What a bot's avatar draws instead of the face: a chosen emoji, or a member's portrait. */
 export type GoatBotPicture = string | GoatBotPortraitArt;
@@ -19,12 +23,21 @@ export function goatBotAvatarPortrait(
   return typeof picture === "object" && picture !== null ? picture : null;
 }
 
-/** A member's emoji, else a portrait drawn from its name, so members never share the main bot's face. */
+/**
+ * A member's emoji, else its chosen portrait, else one drawn from its name, so members never share
+ * the main bot's face.
+ */
 export function goatBotMemberPicture(bot: {
   readonly avatar?: string | null | undefined;
   readonly name: string;
+  readonly portrait?: number | undefined;
 }): GoatBotPicture {
-  return goatBotAvatarEmoji(bot.avatar) ?? goatBotPortraitArt(bot.name);
+  return (
+    goatBotAvatarEmoji(bot.avatar) ??
+    (bot.portrait === undefined
+      ? goatBotPortraitArt(bot.name)
+      : goatBotPortraitArtForSeed(bot.portrait))
+  );
 }
 
 /** How a round avatar shows the bot's state around its picture. */

@@ -1,7 +1,14 @@
 import * as Schema from "effect/Schema";
 
 import { TrimmedNonEmptyString } from "./baseSchemas.ts";
-import { BotColor, BotId, BotInstructions, BotProfile, BotToolNames } from "./botProfile.ts";
+import {
+  BotColor,
+  BotId,
+  BotInstructions,
+  BotPortrait,
+  BotProfile,
+  BotToolNames,
+} from "./botProfile.ts";
 import {
   MIN_SCHEDULED_TASK_INTERVAL_MS,
   ScheduledTaskFixedTimeSchedule,
@@ -58,6 +65,8 @@ export const BotPackage = Schema.Struct({
   name: BotProfile.fields.name,
   face: BotProfile.fields.avatar,
   color: Schema.NullOr(BotColor),
+  /** A member's chosen portrait; absent draws it from the name. */
+  portrait: Schema.optionalKey(BotPortrait),
   purpose: BotProfile.fields.purpose,
   instructions: BotInstructions,
   automations: Schema.Array(Automation).check(Schema.isMaxLength(BOT_PACKAGE_MAX_AUTOMATIONS)),

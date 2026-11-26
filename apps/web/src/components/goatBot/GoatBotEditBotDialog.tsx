@@ -42,6 +42,10 @@ export function GoatBotEditBotDialog({
       canSubmit={canSubmit}
       extraChanged={modelChanged || toolsChanged}
       colorEditable={colorEditable}
+      portraitEditable={
+        colorEditable &&
+        presentation?.serverConfig?.environment.capabilities.goatBotProfilePortrait === true
+      }
       instructionsEditable={
         presentation?.serverConfig?.environment.capabilities.goatBotInstructions === true
       }

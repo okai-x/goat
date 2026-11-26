@@ -124,3 +124,56 @@ it("cannot save without permission to edit the bot", async () => {
   );
   await expect.element(page.getByRole("button", { name: "Save" })).toBeDisabled();
 });
+
+it("saves a picked portrait, and the name's own portrait as null", async () => {
+  const onSubmit = vi.fn(async (_changes: GoatBotProfileChanges) => null);
+  const member = { name: "Scout", avatar: null, purpose: "", color: null, portrait: 7 };
+  {
+    await using _screen = await render(
+      <GoatBotProfileDialog
+        initial={member}
+        canSubmit
+        colorEditable
+        portraitEditable
+        onSubmit={onSubmit}
+        onClose={vi.fn()}
+      />,
+      { router: false }, // The dialog uses no links or navigation.
+    );
+    const group = page.getByRole("radiogroup", { name: "Bot portrait" });
+    await expect
+      .element(group.getByRole("radio", { checked: true }))
+      .toHaveAccessibleName("Portrait 1");
+    await group.getByRole("radio", { name: "Portrait 2" }).click();
+    await page.getByRole("button", { name: "Save" }).click();
+    await vi.waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    const picked = onSubmit.mock.calls[0]?.[0].portrait;
+    expect(typeof picked === "number" && picked !== 7).toBe(true);
+  }
+  {
+    await using _screen = await render(
+      <GoatBotProfileDialog
+        initial={member}
+        canSubmit
+        colorEditable
+        portraitEditable
+        onSubmit={onSubmit}
+        onClose={vi.fn()}
+      />,
+      { router: false }, // The dialog uses no links or navigation.
+    );
+    await page.getByRole("radio", { name: "Drawn from the name" }).click();
+    await page.getByRole("button", { name: "Save" }).click();
+    await vi.waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(2));
+    expect(onSubmit.mock.calls[1]?.[0]).toEqual({ portrait: null });
+  }
+});
+
+it("offers no portrait picker where the server cannot store one", async () => {
+  await using _screen = await render(
+    <GoatBotProfileDialog initial={initial} canSubmit onSubmit={vi.fn()} onClose={vi.fn()} />,
+    { router: false }, // The dialog uses no links or navigation.
+  );
+  await expect.element(page.getByRole("textbox", { name: "Name" })).toBeVisible();
+  expect(page.getByRole("radiogroup", { name: "Bot portrait" }).query()).toBeNull();
+});

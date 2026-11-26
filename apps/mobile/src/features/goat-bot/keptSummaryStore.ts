@@ -21,6 +21,7 @@ const RosterRow = Schema.Struct({
   name: BotProfile.fields.name,
   avatar: BotProfile.fields.avatar,
   color: BotProfile.fields.color,
+  portrait: BotProfile.fields.portrait,
 });
 const AskRow = Schema.Struct({
   botId: BotId,
@@ -90,12 +91,13 @@ const summarize: { [K in KeptKind]: (answer: Answers[K]) => Contents[K] } = {
   bots: ({ bots }: Answers["bots"]) =>
     bots
       .filter((bot) => bot.hidden !== true && bot.state !== "deleted")
-      .map(({ botId, role, name, avatar, color }) => ({
+      .map(({ botId, role, name, avatar, color, portrait }) => ({
         botId,
         role,
         name,
         avatar,
         ...(color === undefined ? {} : { color }),
+        ...(portrait === undefined ? {} : { portrait }),
       })),
   asks: ({ asks, total, truncated }: Answers["asks"]) => ({
     asks: asks.map(({ botId, kind, taskId, askedAt }) => ({ botId, kind, taskId, askedAt })),

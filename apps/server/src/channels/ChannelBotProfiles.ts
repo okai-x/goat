@@ -184,6 +184,17 @@ const withColor = <T extends { readonly color?: string }>(
   const { color: _cleared, ...rest } = profile;
   return rest as T;
 };
+
+/** A portrait edit, read like a color edit. */
+const withPortrait = <T extends { readonly portrait?: number }>(
+  profile: T,
+  portrait: number | null | undefined,
+): T => {
+  if (portrait === undefined) return profile;
+  if (portrait !== null) return { ...profile, portrait };
+  const { portrait: _cleared, ...rest } = profile;
+  return rest as T;
+};
 const persistenceFailed = Effect.mapError((cause: unknown) =>
   isGatewayError(cause) ? cause : new ChannelGatewayError({ reason: "persistence_failed" }),
 );
@@ -289,10 +300,12 @@ const make = Effect.gen(function* () {
             return yield* new ChannelGatewayError({ reason: "not_found" });
           }
           // The main bot's model is the GOAT Bot model setting, which modelFor reads instead.
-          // Its look stays the theme's: a color sent for it is refused.
+          // Its look stays the theme's and its own face: a color or portrait sent for it is refused.
           if (
             record.role === "main" &&
-            (input.defaultModelSelection !== undefined || (input.color ?? null) !== null)
+            (input.defaultModelSelection !== undefined ||
+              (input.color ?? null) !== null ||
+              (input.portrait ?? null) !== null)
           ) {
             return yield* new ChannelGatewayError({ reason: "invalid_input" });
           }
@@ -312,7 +325,7 @@ const make = Effect.gen(function* () {
           };
           const next: ProfileRecord =
             record.role === "member"
-              ? withColor({ ...record, ...changes }, input.color)
+              ? withPortrait(withColor({ ...record, ...changes }, input.color), input.portrait)
               : { ...record, ...changes };
           yield* sql`UPDATE channel_runtime_state
             SET value_json = ${encodeProfile(next)}, updated_at = ${now}
@@ -321,7 +334,7 @@ const make = Effect.gen(function* () {
             (field) => input[field] !== undefined && input[field] !== record[field],
           );
           return {
-            bot: withColor({ ...listed, ...changes }, input.color),
+            bot: withPortrait(withColor({ ...listed, ...changes }, input.color), input.portrait),
             changed,
             toolsNarrowed: input.tools !== undefined && botToolsNarrowed(record.tools, input.tools),
           };

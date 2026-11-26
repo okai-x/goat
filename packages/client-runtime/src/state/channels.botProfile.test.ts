@@ -26,3 +26,30 @@ describe("botProfileChanges and a bot's color", () => {
     expect(botProfileChanges("edit", initial, draft)).toEqual({});
   });
 });
+
+describe("botProfileChanges and a bot's portrait", () => {
+  it("creates with a chosen portrait and without one when drawn from the name", () => {
+    expect(botProfileChanges("create", initial, { ...draft, portrait: 7 })).toHaveProperty(
+      "portrait",
+      7,
+    );
+    expect(botProfileChanges("create", initial, { ...draft, portrait: 0 })).toHaveProperty(
+      "portrait",
+      0,
+    );
+    expect(botProfileChanges("create", initial, { ...draft, portrait: null })).not.toHaveProperty(
+      "portrait",
+    );
+  });
+
+  it("edits send a changed portrait, null to go back to the name's, and nothing when unchanged", () => {
+    const chosen = { ...initial, portrait: 7 };
+    expect(botProfileChanges("edit", chosen, { ...draft, portrait: 9 })).toEqual({ portrait: 9 });
+    expect(botProfileChanges("edit", chosen, { ...draft, portrait: null })).toEqual({
+      portrait: null,
+    });
+    expect(botProfileChanges("edit", chosen, { ...draft, portrait: 7 })).toEqual({});
+    expect(botProfileChanges("edit", initial, { ...draft, portrait: null })).toEqual({});
+    expect(botProfileChanges("edit", chosen, draft)).toEqual({});
+  });
+});

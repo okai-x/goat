@@ -1,7 +1,7 @@
 import { BotProposalFields } from "./botProfile.ts";
 import * as Schema from "effect/Schema";
 
-import { BotColor, BotId, BotProfile, BotRole } from "./botProfile.ts";
+import { BotColor, BotId, BotPortrait, BotProfile, BotRole } from "./botProfile.ts";
 import { AuthEnvironmentScopes } from "./auth.ts";
 import {
   AuthSessionId,
@@ -436,9 +436,9 @@ export const ChannelBotSummary = Schema.Struct({
 });
 
 /**
- * Changes only the keys sent; null clears an avatar, a member's model or its color. The main bot
- * refuses a model (a setting) and a color. A model needs `goatBotMemberModelEdit`, a color
- * `goatBotProfileColor`; older servers drop either key.
+ * Changes only the keys sent; null clears an avatar, a member's model, color or portrait. The main
+ * bot refuses a model (a setting), a color and a portrait. A model needs `goatBotMemberModelEdit`,
+ * a color `goatBotProfileColor`, a portrait `goatBotProfilePortrait`; older servers drop each key.
  */
 export const ChannelUpdateBotInput = Schema.Struct({
   botId: BotId,
@@ -449,6 +449,7 @@ export const ChannelUpdateBotInput = Schema.Struct({
   tools: BotProfile.fields.tools,
   defaultModelSelection: Schema.optionalKey(BotProfile.fields.defaultModelSelection),
   color: Schema.optionalKey(Schema.NullOr(BotColor)),
+  portrait: Schema.optionalKey(Schema.NullOr(BotPortrait)),
 });
 export const ChannelUpdateBotResult = Schema.Struct({ bot: BotProfile });
 

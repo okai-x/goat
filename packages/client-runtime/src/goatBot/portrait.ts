@@ -183,13 +183,33 @@ const DRAWN_LIMIT = 256;
 
 /** The same name always draws the same portrait; case and surrounding spaces do not matter. */
 export function goatBotPortraitArt(name: string): GoatBotPortraitArt {
-  const hash = hashName(name);
+  return goatBotPortraitArtForSeed(hashName(name));
+}
+
+/** The portrait a stored seed draws; every client draws the same one. */
+export function goatBotPortraitArtForSeed(seed: number): GoatBotPortraitArt {
+  const hash = seed >>> 0;
   const known = drawn.get(hash);
   if (known !== undefined) return known;
   if (drawn.size >= DRAWN_LIMIT) drawn.clear();
   const art = drawPortrait(hash);
   drawn.set(hash, art);
   return art;
+}
+
+/** Fresh seeds to offer in a picker, each drawing a different portrait. */
+export function goatBotPortraitSeeds(count: number, random: () => number = Math.random) {
+  const seeds: number[] = [];
+  const looks = new Set<string>();
+  for (let attempt = 0; seeds.length < count && attempt < count * 20; attempt++) {
+    const seed = Math.floor(random() * 0x100000000) >>> 0;
+    const art = goatBotPortraitArtForSeed(seed);
+    const look = [art.back, art.body.dark, art.ink, art.lines, art.details, art.background].join();
+    if (looks.has(look)) continue;
+    looks.add(look);
+    seeds.push(seed);
+  }
+  return seeds;
 }
 
 function drawPortrait(hash: number): GoatBotPortraitArt {

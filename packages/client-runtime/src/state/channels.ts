@@ -696,11 +696,14 @@ export interface BotProfileValues {
   readonly instructions?: string;
   /** A member's accent; null is the theme's neutral. Absent where the server cannot store one. */
   readonly color?: string | null;
+  /** A member's portrait seed; null draws it from the name. Absent where the server cannot store one. */
+  readonly portrait?: number | null;
 }
 
 /**
  * What to send for a bot's profile: every field when creating, else only what changed, trimmed as
- * stored. A color goes only where the form offers one: a chosen one on create, a change on edit.
+ * stored. A color or portrait goes only where the form offers one: a choice on create, a change on
+ * edit.
  */
 export function botProfileChanges(
   mode: "edit" | "create",
@@ -711,6 +714,7 @@ export function botProfileChanges(
     readonly purpose: string;
     readonly instructions?: string;
     readonly color?: string | null;
+    readonly portrait?: number | null;
   },
 ): Partial<BotProfileValues> {
   const next = {
@@ -718,8 +722,14 @@ export function botProfileChanges(
     avatar: draft.avatar.trim() === "" ? null : draft.avatar.trim(),
     purpose: draft.purpose.trim(),
   };
-  const color = draft.color;
-  if (mode === "create") return color == null ? next : { ...next, color };
+  const { color, portrait } = draft;
+  if (mode === "create") {
+    return {
+      ...next,
+      ...(color == null ? {} : { color }),
+      ...(portrait == null ? {} : { portrait }),
+    };
+  }
   return {
     ...(next.name === initial.name ? {} : { name: next.name }),
     ...(next.avatar === initial.avatar ? {} : { avatar: next.avatar }),
@@ -728,5 +738,6 @@ export function botProfileChanges(
       ? {}
       : { instructions: draft.instructions }),
     ...(color === undefined || sameBotColor(color, initial.color) ? {} : { color }),
+    ...(portrait === undefined || portrait === (initial.portrait ?? null) ? {} : { portrait }),
   };
 }

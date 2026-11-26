@@ -3,6 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 
 vi.mock("../../components/ui/AppSymbol", () => ({ SymbolView: () => null }));
+vi.mock("./GoatBotFace", () => ({ GoatBotPortrait: () => null }));
 vi.mock("react-native", () => ({
   Modal: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
   View: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
@@ -75,6 +76,8 @@ async function mount(
   more: {
     readonly colorEditable?: boolean;
     readonly color?: string | null;
+    readonly portraitEditable?: boolean;
+    readonly portrait?: number;
     readonly draftName?: string;
   } = {},
 ) {
@@ -89,10 +92,15 @@ async function mount(
         initial={
           mode === "create"
             ? { name: "", avatar: null, purpose: "" }
-            : { ...initial, ...(more.color === undefined ? {} : { color: more.color }) }
+            : {
+                ...initial,
+                ...(more.color === undefined ? {} : { color: more.color }),
+                ...(more.portrait === undefined ? {} : { portrait: more.portrait }),
+              }
         }
         canSubmit={canSubmit}
         colorEditable={more.colorEditable}
+        portraitEditable={more.portraitEditable}
         draftName={more.draftName}
         onSubmit={onSubmit}
         onClose={onClose}
@@ -277,4 +285,32 @@ it("starts Edit from a name typed elsewhere and saves it, alone or with other ch
   await type("Purpose", "Watch the deploys.");
   await act(async () => save().click());
   expect(onSubmit).toHaveBeenLastCalledWith({ name: "Ada", purpose: "Watch the deploys." });
+});
+
+it("saves a picked portrait on Edit, the name's own as null, and offers none to an older server", async () => {
+  const onSubmit = vi.fn(async (_changes: object) => null);
+  const radio = (label: string) =>
+    container.querySelector<HTMLButtonElement>(`[role="radio"][aria-label="${label}"]`);
+  await mount(onSubmit, true, "edit", undefined, { portraitEditable: true, portrait: 7 });
+  expect(radio("Portrait 1")?.getAttribute("aria-checked")).toBe("true");
+  await act(async () => radio("Portrait 2")?.click());
+  await act(async () => save().click());
+  const sent = onSubmit.mock.calls[0]?.[0] as { portrait?: unknown } | undefined;
+  const picked = sent?.portrait;
+  expect(typeof picked === "number" && picked !== 7).toBe(true);
+  await act(async () => root?.unmount());
+  root = undefined;
+  container.remove();
+
+  onSubmit.mockClear();
+  await mount(onSubmit, true, "edit", undefined, { portraitEditable: true, portrait: 7 });
+  await act(async () => radio("Drawn from the name")?.click());
+  await act(async () => save().click());
+  expect(onSubmit).toHaveBeenCalledExactlyOnceWith({ portrait: null });
+  await act(async () => root?.unmount());
+  root = undefined;
+  container.remove();
+
+  await mount(onSubmit, true, "edit", undefined, { portrait: 7 });
+  expect(radio("Drawn from the name")).toBeNull();
 });

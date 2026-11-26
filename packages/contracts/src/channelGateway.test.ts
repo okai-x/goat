@@ -116,6 +116,37 @@ describe("channel.updateBot input", () => {
     expect(decodeProfile(legacy)._tag).toBe("Success");
   });
 
+  it("carries a portrait seed, clears it with null and refuses anything but a 32-bit seed", () => {
+    const decoded = Schema.decodeUnknownSync(ChannelUpdateBotInput);
+    expect(decoded({ botId: "helper", portrait: 7 })).toEqual({ botId: "helper", portrait: 7 });
+    expect(decoded({ botId: "helper", portrait: null })).toEqual({
+      botId: "helper",
+      portrait: null,
+    });
+    for (const portrait of [-1, 1.5, 2 ** 32, "7"]) {
+      expect(decode({ botId: "helper", portrait })._tag, String(portrait)).toBe("Failure");
+    }
+    const older = Schema.decodeUnknownExit(
+      Schema.Struct((({ portrait: _portrait, ...fields }) => fields)(BotProfile.fields)),
+    );
+    const profile = {
+      botId: "helper",
+      role: "member",
+      name: "Helper",
+      avatar: null,
+      purpose: "",
+      defaultModelSelection: null,
+      defaultProjectId: null,
+      environmentId: "env",
+      sessionThreadId: "thread",
+      createdAt: "2026-11-26T00:00:00.000Z",
+      updatedAt: "2026-11-26T00:00:00.000Z",
+      portrait: 0xffffffff,
+    };
+    expect(decodeProfile(profile)._tag).toBe("Success");
+    expect(older(profile)._tag).toBe("Success");
+  });
+
   it("keeps a bot status with tasks readable by a client that predates tasks, and the reverse", () => {
     const { tasks: _tasks, ...olderFields } = ChannelGetBotStatusResult.fields;
     const older = Schema.decodeUnknownExit(Schema.Struct(olderFields));

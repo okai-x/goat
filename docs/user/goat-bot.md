@@ -38,6 +38,9 @@ under its own name and purpose from its next conversation session.
   bot's model again.
 - On web and desktop, with a server that supports it, an added bot can have a color, picked in
   its edit dialog. Its chat shows your messages and the send button in that color.
+- An added bot without an emoji shows a drawn portrait made from its name. To pick another, use
+  **Portrait** in its edit dialog: **Shuffle** offers a new set, and the first one goes back to
+  the portrait from its name. An emoji set in **Avatar** shows instead.
 - **Hide** moves a bot under **Hidden bots**; it still answers there. **Delete** archives its
   conversation and moves it under **Deleted bots**, where **Restore** brings it back with its
   history. A bot with open tasks can't be deleted until they finish or you stop them.

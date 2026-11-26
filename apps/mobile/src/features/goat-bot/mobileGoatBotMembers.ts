@@ -6,7 +6,7 @@ import { goatBotMemberPicture, type GoatBotPicture } from "@goat/client-runtime/
  * from each other and from the main bot's face, as on web.
  */
 export function mobileGoatBotMemberPicture(
-  bot: Pick<BotProfile, "avatar" | "name">,
+  bot: Pick<BotProfile, "avatar" | "name" | "portrait">,
 ): GoatBotPicture {
   return goatBotMemberPicture(bot);
 }

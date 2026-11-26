@@ -1,6 +1,6 @@
 import * as Schema from "effect/Schema";
 import { TrimmedNonEmptyString } from "./baseSchemas.ts";
-import { BotColor, BotId, BotProfile } from "./botProfile.ts";
+import { BotColor, BotId, BotPortrait, BotProfile } from "./botProfile.ts";
 
 /** A member bot with its own conversation. A retry with the same clientRequestId returns it. */
 export const ChannelCreateBotInput = Schema.Struct({
@@ -13,6 +13,8 @@ export const ChannelCreateBotInput = Schema.Struct({
   defaultModelSelection: BotProfile.fields.defaultModelSelection,
   /** Read by servers with `goatBotProfileColor`; absent leaves the bot neutral. */
   color: Schema.optionalKey(BotColor),
+  /** Read by servers with `goatBotProfilePortrait`; absent draws the portrait from the name. */
+  portrait: Schema.optionalKey(BotPortrait),
 });
 export type ChannelCreateBotInput = typeof ChannelCreateBotInput.Type;
 

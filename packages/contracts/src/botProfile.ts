@@ -15,6 +15,11 @@ export const BotRole = Schema.Literals(["main", "member"]);
 /** A member bot's accent, as opaque sRGB `#RRGGBB`; clients pick the text color over it. */
 export const BotColor = Schema.String.check(Schema.isPattern(/^#[0-9A-Fa-f]{6}$/));
 export type BotColor = typeof BotColor.Type;
+/** The seed a member's drawn portrait is made from; clients draw the same face for the same seed. */
+export const BotPortrait = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)).check(
+  Schema.isLessThanOrEqualTo(0xffffffff),
+);
+export type BotPortrait = typeof BotPortrait.Type;
 export const BOT_INSTRUCTIONS_MAX_BYTES = 16 * 1024;
 export const BotInstructions = Schema.String.check(
   Schema.isMaxLength(BOT_INSTRUCTIONS_MAX_BYTES),
@@ -64,6 +69,8 @@ export const BotProfile = Schema.Struct({
   state: Schema.optionalKey(Schema.Literals(["active", "deleted"])),
   /** A member's accent. Absent means the theme's neutral; the main bot has none. */
   color: Schema.optionalKey(BotColor),
+  /** A member's chosen portrait. Absent means the one drawn from its name; the main bot has none. */
+  portrait: Schema.optionalKey(BotPortrait),
 });
 export type BotProfile = typeof BotProfile.Type;
 
