@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useWorkspaceTabs } from "../workspace/WorkspaceTabsContext";
 import { GoatBotFaceAvatar } from "./GoatBotFace";
+import { mobileGoatBotMemberPicture } from "./mobileGoatBotMembers";
 import { useOfflineBotSummary, type OfflineBotSummary } from "./useOfflineBotSummary";
 
 const timeFormat = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" });
@@ -106,7 +107,9 @@ function OfflineBotRow(props: {
       <GoatBotFaceAvatar
         state="sleeping"
         size={40}
-        emoji={props.row?.avatar}
+        emoji={
+          props.row?.role === "member" ? mobileGoatBotMemberPicture(props.row) : props.row?.avatar
+        }
         accent={props.row ? goatBotAccent(props.row) : null}
       />
       <Text className="flex-1 text-base font-semibold text-foreground">{props.name}</Text>

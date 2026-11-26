@@ -3,6 +3,7 @@ import {
   FACE_MOTION_RANK,
   goatBotAccent,
   goatBotAvatarEmoji,
+  goatBotAvatarPortrait,
   goatBotAvatarSignal,
   goatBotFaceSpoken,
   goatBotMemberPicture,
@@ -10,6 +11,7 @@ import {
   type GoatBotAccent,
   type GoatBotAvatarSignal,
   type GoatBotFaceState,
+  type GoatBotPicture,
   type GoatBotRowStatus,
 } from "@goat/client-runtime/goatBot";
 import type { BotProfile, ScopedThreadRef } from "@goat/contracts";
@@ -19,6 +21,7 @@ import { cn } from "~/lib/utils";
 import { useThreadShell } from "~/state/entities";
 
 import { GoatBotFace } from "./GoatBotFace";
+import { GoatBotPortrait } from "./GoatBotPortrait";
 import { useGoatBotPreferred } from "./GoatBotModeButton";
 import { useGoatBotFaceMotion, useGoatBotSessionFace } from "./useGoatBotFace";
 import { useGoatBotComputerReadable } from "./useGoatBotComputerReadable";
@@ -61,9 +64,9 @@ const RING: Record<NonNullable<GoatBotAvatarSignal["ring"]>, string> = {
 };
 
 /**
- * A bot on a theme-aware neutral circle: its chosen emoji, else its face, still and idle when no
- * state is given. A member's color fills the circle behind its picture. The ring and dot carry
- * the state either way.
+ * A bot on a theme-aware neutral circle: its chosen emoji or portrait, else its face, still and
+ * idle when no state is given. A member's color fills the circle behind its picture; a portrait
+ * brings its own soft color otherwise. The ring and dot carry the state either way.
  */
 export function GoatBotAvatar({
   size = "md",
@@ -79,8 +82,8 @@ export function GoatBotAvatar({
   readonly state?: GoatBotFaceState | undefined;
   /** Where this face sits and when its work started; it may then move while reading or working. */
   readonly motion?: { readonly rank: number; readonly since: number | null } | undefined;
-  /** The bot's profile avatar; an emoji replaces the drawn face. */
-  readonly emoji?: string | null | undefined;
+  /** The bot's picture; an emoji or a member's portrait replaces the drawn face. */
+  readonly emoji?: GoatBotPicture | null | undefined;
   /** A member's color, with text that reads on it; the face itself stays on the neutral circle. */
   readonly accent?: GoatBotAccent | null | undefined;
   /** The row's waiting count when the label says it, so the row says waiting once. */
@@ -91,18 +94,25 @@ export function GoatBotAvatar({
 }) {
   const label = state === undefined ? null : goatBotFaceSpoken(state, spokenCount);
   const picture = goatBotAvatarEmoji(emoji);
-  const signal = state === undefined ? null : goatBotAvatarSignal(state, picture !== null);
-  const fill = picture !== null ? accent : null;
+  const portrait = goatBotAvatarPortrait(emoji);
+  const drawn = picture !== null || portrait !== null;
+  const signal = state === undefined ? null : goatBotAvatarSignal(state, drawn);
+  const fill =
+    portrait !== null
+      ? (accent ?? { background: portrait.background, foreground: "#000000" })
+      : picture !== null
+        ? accent
+        : null;
   // On a color the letter keeps its contrast, so a sleeping member dims the whole circle instead.
   const dimCircle = signal?.dimmed === true && fill !== null;
   // A ring on a member's color is parted from the fill by a hairline of the surface behind it.
   const parted = fill !== null && signal?.ring != null;
   const place = SURFACE[surface];
   const dot = signal?.waitingDot === true ? goatBotWaitingDot(CIRCLE_PX[size]) : null;
-  // An emoji has no eyes to move, so it never takes the one moving face.
+  // An emoji or portrait has no eyes to move, so it never takes the one moving face.
   const { watch, motion: eyeMotion } = useGoatBotFaceMotion(
-    picture === null ? state : undefined,
-    picture === null ? motion : undefined,
+    drawn ? undefined : state,
+    drawn ? undefined : motion,
   );
   return (
     <span
@@ -134,7 +144,15 @@ export function GoatBotAvatar({
           style={{ backgroundColor: fill.background }}
         />
       ) : null}
-      {picture !== null ? (
+      {portrait !== null ? (
+        <span
+          aria-hidden
+          data-goat-bot-portrait
+          className={cn("absolute overflow-hidden rounded-full", parted ? "inset-px" : "inset-0")}
+        >
+          <GoatBotPortrait art={portrait} className="size-full" />
+        </span>
+      ) : picture !== null ? (
         <span
           aria-hidden
           className={cn(
@@ -196,8 +214,8 @@ export function GoatBotSessionAvatar({
   readonly activity?: { readonly state: "reading" | "working" } | null;
   /** The caller is this bot's chat header: its items are already loaded and it moves first. */
   readonly chatOpen?: boolean;
-  /** The bot's profile avatar. */
-  readonly emoji?: string | null | undefined;
+  /** The bot's picture: its emoji, or a member's portrait. */
+  readonly emoji?: GoatBotPicture | null | undefined;
   readonly accent?: GoatBotAccent | null | undefined;
   readonly row?: GoatBotRowStatus | undefined;
   /** The row hides its own waiting badge from assistive technology; the label says the count. */
@@ -270,7 +288,7 @@ export function GoatBotMainAvatar({
   readonly place?: "list" | "rail";
   readonly surface?: GoatBotAvatarSurface | undefined;
   /** The main bot's profile avatar. */
-  readonly emoji?: string | null | undefined;
+  readonly emoji?: GoatBotPicture | null | undefined;
   /** The row hides its own waiting badge from assistive technology; the label says the count. */
   readonly countInLabel?: boolean;
   readonly waitingOverride?: number | null | undefined;
@@ -305,8 +323,8 @@ export function useGoatBotMemberFace(bot: BotProfile): GoatBotShownFace {
 }
 
 /**
- * A member bot's avatar for a face its caller already holds. Without an emoji it shows its name's
- * first letter on its color, so members are told apart from each other and from the main bot.
+ * A member bot's avatar for a face its caller already holds. Without an emoji it shows a portrait
+ * drawn from its name, so members are told apart from each other and from the main bot.
  */
 export function GoatBotMemberAvatar({
   bot,

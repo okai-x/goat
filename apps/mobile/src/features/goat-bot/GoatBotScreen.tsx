@@ -13,6 +13,7 @@ import {
   type GoatBotAccent,
   type GoatBotReplyRepository,
   type GoatBotRow,
+  type GoatBotPicture,
 } from "@goat/client-runtime/goatBot";
 import {
   ChannelQuestionId,
@@ -135,7 +136,7 @@ export const GoatBotTimelineRow = memo(function GoatBotTimelineRow(props: {
   /** Who the conversation belongs to; its name heads each run of bot messages. */
   readonly botName?: string;
   /** The bot's profile avatar, shown beside its name. */
-  readonly botEmoji?: string | null | undefined;
+  readonly botEmoji?: GoatBotPicture | null | undefined;
   /** A member bot's color for the person's messages; the theme's without one. */
   readonly accent?: GoatBotAccent | null | undefined;
 }) {

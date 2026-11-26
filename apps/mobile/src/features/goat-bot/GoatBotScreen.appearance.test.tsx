@@ -2,6 +2,7 @@ import "./goatBotScreenTestHarness";
 import { act } from "react";
 import {
   goatBotActivity,
+  goatBotPortraitArt,
   type GoatBotActivity,
   type GoatBotRow,
 } from "@goat/client-runtime/goatBot";
@@ -52,7 +53,7 @@ it("shows the bot's waiting state in the Home hero", async () => {
   screenSession.faceShell = null;
 });
 
-it("shows a member's initial and accent in the Home hero", async () => {
+it("shows a member's portrait and accent in the Home hero", async () => {
   const scout = {
     botId: "scout",
     name: "Scout",
@@ -65,7 +66,7 @@ it("shows a member's initial and accent in the Home hero", async () => {
   } as unknown as import("@goat/contracts").BotProfile;
   const view = await render(<GoatBotScreen visible member={scout} />);
   const hero = view.container.querySelector('[aria-label="Task header"] [data-avatar]');
-  expect(hero?.getAttribute("data-avatar-emoji")).toBe("S");
+  expect(hero?.getAttribute("data-avatar-emoji")).toBe(goatBotPortraitArt("Scout").id);
   expect(hero?.getAttribute("data-avatar-accent")).toBe("#2F6FED");
   await view.unmount();
 });

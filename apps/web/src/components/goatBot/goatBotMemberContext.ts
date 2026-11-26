@@ -3,6 +3,7 @@ import {
   goatBotMemberPicture,
   goatBotName,
   type GoatBotAccent,
+  type GoatBotPicture,
 } from "@goat/client-runtime/goatBot";
 import type { BotProfile } from "@goat/contracts";
 import { createContext, useContext, type CSSProperties } from "react";
@@ -30,11 +31,11 @@ export function useGoatBotMainName(): string {
 }
 
 /**
- * The open chat's bot as its avatar draws it: a member's emoji or initial on its colour, as in
+ * The open chat's bot as its avatar draws it: a member's emoji or portrait on its colour, as in
  * the roster, else the main bot's avatar (null draws the face) with no colour.
  */
 export function useGoatBotPicture(): {
-  readonly emoji: string | null;
+  readonly emoji: GoatBotPicture | null;
   readonly accent: GoatBotAccent | null;
 } {
   const member = useContext(GoatBotMemberContext);

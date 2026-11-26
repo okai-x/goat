@@ -1,19 +1,30 @@
 import type { GoatBotFaceState } from "./face.ts";
 
+import { goatBotPortraitArt, type GoatBotPortraitArt } from "./portrait.ts";
+
+/** What a bot's avatar draws instead of the face: a chosen emoji, or a member's portrait. */
+export type GoatBotPicture = string | GoatBotPortraitArt;
+
 /** A bot's chosen avatar emoji, or null for the default face. */
-export function goatBotAvatarEmoji(avatar: string | null | undefined): string | null {
-  const trimmed = avatar?.trim() ?? "";
+export function goatBotAvatarEmoji(avatar: GoatBotPicture | null | undefined): string | null {
+  if (typeof avatar !== "string") return null;
+  const trimmed = avatar.trim();
   return trimmed === "" ? null : trimmed;
 }
 
-/** A member's emoji, else its name's first letter, so members never share the main bot's face. */
+/** The portrait a picture draws, or null for an emoji or the face. */
+export function goatBotAvatarPortrait(
+  picture: GoatBotPicture | null | undefined,
+): GoatBotPortraitArt | null {
+  return typeof picture === "object" && picture !== null ? picture : null;
+}
+
+/** A member's emoji, else a portrait drawn from its name, so members never share the main bot's face. */
 export function goatBotMemberPicture(bot: {
   readonly avatar?: string | null | undefined;
   readonly name: string;
-}): string | null {
-  return (
-    goatBotAvatarEmoji(bot.avatar) ?? Array.from(bot.name.trim())[0]?.toLocaleUpperCase() ?? null
-  );
+}): GoatBotPicture {
+  return goatBotAvatarEmoji(bot.avatar) ?? goatBotPortraitArt(bot.name);
 }
 
 /** How a round avatar shows the bot's state around its picture. */

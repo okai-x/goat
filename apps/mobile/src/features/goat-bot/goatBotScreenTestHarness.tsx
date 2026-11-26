@@ -231,15 +231,16 @@ vi.mock("./GoatBotFace", () => ({
   ),
   GoatBotFaceAvatar: (props: {
     state: string;
-    emoji?: string | null;
+    emoji?: string | { id: string } | null;
     accent?: { background: string } | null;
   }) => (
     <i
       data-avatar={props.state}
-      data-avatar-emoji={props.emoji}
+      data-avatar-emoji={typeof props.emoji === "object" ? props.emoji?.id : props.emoji}
       data-avatar-accent={props.accent?.background}
     />
   ),
+  GoatBotPortrait: (props: { art: { id: string } }) => <i data-portrait={props.art.id} />,
 }));
 vi.mock("./GoatBotShimmerText", () => ({
   GoatBotShimmerText: (props: { label: string; animate: boolean; style?: unknown }) => (

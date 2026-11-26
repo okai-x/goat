@@ -97,8 +97,13 @@ vi.mock("@react-navigation/native", () => ({ useIsFocused: () => true }));
 vi.mock("../../components/GoatWordmark", () => ({ GoatWordmark: () => <span /> }));
 const face = vi.hoisted(() => ({ items: [] as ReadonlyArray<object> }));
 vi.mock("./GoatBotFace", () => ({
-  GoatBotFaceAvatar: (props: { motion: object | null; emoji?: string | null }) => (
-    <span data-motion={props.motion ? "moving" : "still"} data-picture={props.emoji ?? ""} />
+  GoatBotFaceAvatar: (props: { motion: object | null; emoji?: string | object | null }) => (
+    <span
+      data-motion={props.motion ? "moving" : "still"}
+      data-picture={
+        typeof props.emoji === "object" && props.emoji !== null ? "portrait" : (props.emoji ?? "")
+      }
+    />
   ),
 }));
 vi.mock("./useMobileGoatBotHomeMode", () => ({
@@ -445,9 +450,9 @@ it("offers New bot, a member's own row, and the hidden and deleted bots when the
     );
   expect(button("Research")?.getAttribute("aria-pressed")).toBe("true");
   expect(button("Research")?.getAttribute("aria-label")).toBe("2 waiting for you, Research");
-  // A member without an emoji shows its initial, so it is told apart from the main bot's face.
+  // A member without an emoji shows a portrait, so it is told apart from the main bot's face.
   expect(button("Research")?.querySelector("[data-picture]")?.getAttribute("data-picture")).toBe(
-    "R",
+    "portrait",
   );
   expect(container.textContent).not.toContain("Coming soon");
   await act(async () => button("New bot")?.click());
