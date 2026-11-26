@@ -7,6 +7,10 @@
       "types": "./src/composerModelMentions.ts",
       "default": "./src/composerModelMentions.ts"
     },
+    "./trace": {
+      "types": "./src/trace/threadTrace.ts",
+      "default": "./src/trace/threadTrace.ts"
+    },
     "./locales": {
       "types": "./src/locales.ts",
       "default": "./src/locales.ts"
