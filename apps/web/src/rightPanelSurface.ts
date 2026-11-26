@@ -10,6 +10,7 @@ const RIGHT_PANEL_KINDS = [
   "pull-request",
   "pull-requests",
   "side-chat",
+  "trace",
 ] as const;
 export type RightPanelKind = (typeof RIGHT_PANEL_KINDS)[number];
 
@@ -68,7 +69,9 @@ export type RightPanelSurface =
   /** The thread's linked pull requests, one singleton tab beside any number of `pull-request` tabs. */
   | { id: "pull-requests"; kind: "pull-requests" }
   /** The thread's side chat (`/side`), a hidden thread rendered with the ordinary chat view. */
-  | { id: "side-chat"; kind: "side-chat" };
+  | { id: "side-chat"; kind: "side-chat" }
+  /** The thread's runs, tool calls and timing as a tree; derived on the client from the thread. */
+  | { id: "trace"; kind: "trace" };
 
 export const singletonSurface = (
   kind: Exclude<RightPanelKind, "file" | "preview" | "terminal" | "pull-request">,
@@ -82,6 +85,8 @@ export const singletonSurface = (
       return { id: "pull-requests", kind };
     case "side-chat":
       return { id: "side-chat", kind };
+    case "trace":
+      return { id: "trace", kind };
     case "device":
       return { id: "device", kind };
   }

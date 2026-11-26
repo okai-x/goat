@@ -77,7 +77,7 @@ const TOOL_TYPES: ReadonlySet<Item["type"]> = new Set([
   "subagent",
 ]);
 
-export function isToolSpan(span: TraceSpan): boolean {
+function isToolSpan(span: TraceSpan): boolean {
   return TOOL_TYPES.has(span.kind as Item["type"]);
 }
 
@@ -406,7 +406,7 @@ export function createThreadTraceDeriver(): (structure: ThreadStructure) => Thre
   };
 }
 
-export const THREAD_TRACE_EXPORT_FORMAT = "goat.trace.v1";
+const THREAD_TRACE_EXPORT_FORMAT = "goat.trace.v1";
 
 /** A portable skeleton of the trace: structure and timing, without message or tool bodies. */
 export function exportThreadTrace(

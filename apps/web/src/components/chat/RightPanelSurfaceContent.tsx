@@ -32,6 +32,7 @@ const DevicePanel = lazy(() =>
   import("../device/DevicePanel").then((module) => ({ default: module.DevicePanel })),
 );
 const FilePreviewPanel = lazy(() => import("../files/FilePreviewPanel"));
+const TracePanel = lazy(() => import("../trace/TracePanel"));
 
 export type RightPanelTerminalProps = Omit<
   PersistentThreadTerminalPanelProps,
@@ -167,6 +168,16 @@ export function RightPanelSurfaceContent(props: {
     }
     case "pull-requests":
       return <ThreadPullRequestsPanel threadRef={threadRef} />;
+    case "trace":
+      return (
+        <Suspense fallback={null}>
+          <TracePanel
+            key={scopedThreadKey(threadRef)}
+            threadRef={threadRef}
+            workspaceRoot={props.files.workspaceRoot}
+          />
+        </Suspense>
+      );
     case "device":
       return (
         <Suspense fallback={null}>
